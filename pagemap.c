@@ -80,7 +80,15 @@ void InitPageMap()
 
 void InitBlockMap()
 {
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct blockStatusTable*) (BST_ADDR);
+	blockFSMTable = (struct blockFSMTable*) (BFSM_ADDR)
+	
+	for (int k = 0; k < STATE_NUM; k++) {
+		for (int l = 0; l < BIN_NUM; l++) {
+			blockFSMTable[k][l].head = 0xffffffff;
+			blockFSMTable[k][l].tail = 0xffffffff;
+		}
+	}
 
 //	xil_printf("BLOCK_MAP_ADDR : %8x\r\n", BLOCK_MAP_ADDR);
 
@@ -90,13 +98,26 @@ void InitBlockMap()
 	{
 		for(j=0 ; j<DIE_NUM ; j++)
 		{
-			blockMap->bmEntry[j][i].bad = 0;
-			blockMap->bmEntry[j][i].free = 1;
-			blockMap->bmEntry[j][i].eraseCnt = 0;
-			blockMap->bmEntry[j][i].invalidPageCnt = 0;
-			blockMap->bmEntry[j][i].currentPage = 0x0;
-			blockMap->bmEntry[j][i].prevBlock = 0xffffffff;
-			blockMap->bmEntry[j][i].nextBlock = 0xffffffff;
+			blockStatusTable->bstEntry[j][i].bad = 0;
+			blockStatusTable->bstEntry[j][i].state = FREE;
+			blockStatusTable->bstEntry[j][i].validPageCnt = 0;
+			blockStatusTable->bstEntry[j][i].eraseCnt = 0;
+			block_num = i * j + i;
+			blockFSMTable[FREE][0][block_num].bad = 0;
+			blockFSMTable[FREE][0][block_num].s = FREE;
+			blockFSMTable[FREE][0][block_num].binNum = 0;
+			if (block_num == 0) {
+				blockFSMTable[FREE][0].head = blockFSMTable[FREE][0][block_num];
+				blockFSMTable[FREE][0][block_num].prevBlock = 0xffffffff;
+			}
+			else { 
+				if (block_num == BLOCK_NUM_PER_DIE * DIE_NUM - 1) {
+				    blockFSMTable[FREE][0].tail = blockFSMTABLE[FREE][0][block_num];
+				    blockFSMTable[FREE][0][block_num].nextBlock = 0xffffffff;
+				}
+				blockFSMTable[FREE][0][block_num].prevBlock = blockFSMTable[FREE][0][block_num-1];
+				blockFSMTable[FREE][0][block_num-1].nextBlock = blockFSMTable[FREE][0][block_num];
+			}
 		}
 	}
 
