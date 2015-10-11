@@ -3,6 +3,7 @@
 // Copyright (c) 2014 Hanyang University ENC Lab.
 // Contributed by Yong Ho Song <yhsong@enc.hanyang.ac.kr>
 //                Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//     		 	  Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 //
 // This file is part of Cosmos OpenSSD.
 //
@@ -24,13 +25,14 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Company: ENC Lab. <http://enc.hanyang.ac.kr>
 // Engineer: Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//     		 Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 // 
 // Project Name: Cosmos OpenSSD
 // Design Name: Greedy FTL
 // Module Name: Low Level Driver
 // File Name: lld.c
 //
-// Version: v1.0.2
+// Version: v1.0.3
 //
 // Description: 
 //   - interface to NAND flash memory controller
@@ -40,6 +42,9 @@
 
 //////////////////////////////////////////////////////////////////////////////////
 // Revision History:
+//
+// * v1.0.3
+//   - replace bitwise operation with decimal operation
 //
 // * v1.0.2
 //   - change in naming convention
@@ -251,7 +256,7 @@ int SsdPageProgram(u32 chNo, u32 wayNo, u32 rowAddr, u32 srcAddr)
 
 int SsdErase(u32 chNo, u32 wayNo, u32 blockNo)
 {
-	return SsdBlockErase(chNo, wayNo, blockNo << PAGE_NUM_PER_BLOCK_B);
+	return SsdBlockErase(chNo, wayNo, blockNo * PAGE_NUM_PER_BLOCK);
 }
 
 int SsdRead(u32 chNo, u32 wayNo, u32 rowAddr, u32 dstAddr)

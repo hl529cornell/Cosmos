@@ -427,7 +427,7 @@ void InitIdentifyData(P_IDENTIFY_DEVICE_DATA IdentifyData)
 void SetIdentifyData(P_IDENTIFY_DEVICE_DATA IdentifyData, P_HOST_CMD hostCmd )
 {
 	u8 cmd = hostCmd->reqInfo.Cmd;
-	u8 feature = (u8)hostCmd->reqInfo.currentSect;
+	u8 feature = (u8)hostCmd->reqInfo.CurSect;
 	if( cmd == IDE_COMMAND_SECURITY_FREEZE_LOCK )
 	{
 		IdentifyData->SecurityStatus.SecurityFrozen = 1;

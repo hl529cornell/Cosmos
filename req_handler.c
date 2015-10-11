@@ -5,6 +5,7 @@
 //                Youngjin Jo <yjjo@enc.hanyang.ac.kr>
 //                Sangjin Lee <sjlee@enc.hanyang.ac.kr>
 //                Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//			 	  Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 //
 // This file is part of Cosmos OpenSSD.
 //
@@ -26,13 +27,14 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Company: ENC Lab. <http://enc.hanyang.ac.kr>
 // Engineer: Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//			 Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 //
 // Project Name: Cosmos OpenSSD
 // Design Name: Greedy FTL
 // Module Name: Request Handler
 // File Name: req_handler.c
 //
-// Version: v2.0.0
+// Version: v2.2.0
 //
 // Description:
 //   - Handling request commands.
@@ -41,6 +43,16 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Revision History:
 //
+// * v2.2.0
+//   - page buffer initialization
+//
+// * v2.1.1
+//   - Automatically calculate sector count
+//
+// * v2.1.0
+//   - Support shutdown command (not ATA command)
+//   - Move sector count information from driver to device firmware
+//
 // * v2.0.0
 //   - support Tutorial FTL function
 //
@@ -48,12 +60,23 @@
 //   - First draft
 //////////////////////////////////////////////////////////////////////////////////
 
-#include "req_handler.h"
 
+#include <stdio.h>
+#include "xparameters.h"
+#include "xil_io.h"
+#include "xil_cache.h"
+#include "xil_exception.h"
+#include "xil_types.h"
+#include "xaxicdma.h"
+#include "xaxipcie.h"
+
+#include "mem_map.h"
 #include "ata.h"
-#include "ftl.h"
 #include "host_controller.h"
 #include "identify.h"
+#include "req_handler.h"
+
+#include "ftl.h"
 #include "pageMap.h"
 
 extern XAxiPcie devPcie;
@@ -89,7 +112,13 @@ void ReqHandler(void)
 {
 	u32 deviceAddr;
 	u32 reqSize, scatterLength;
+	u32 checkRequest;
+	u32 storageSize;
 
+	//initialize controller registers
+	Xil_Out32(CONFIG_SPACE_REQUEST_START, 0);
+	Xil_Out32(CONFIG_SPACE_SHUTDOWN, 0);
+	
 	//initialize AXI bridge for PCIe
 	XAxiPcie_CfgInitialize(&devPcie, XAxiPcie_ConfigTable, XPAR_PCI_EXPRESS_BASEADDR);
 
@@ -101,96 +130,113 @@ void ReqHandler(void)
 	InitNandReset();
 	InitFtlMapTable();
 
+	printf("[ Initialization is completed. ]\r\n");
+
+	storageSize = SSD_SIZE - FREE_BLOCK_SIZE - BAD_BLOCK_SIZE - METADATA_BLOCK_SIZE;
+	xil_printf("[ Bad block size : %dMB. ]\r\n", BAD_BLOCK_SIZE);
+	xil_printf("[ Storage size : %dMB. ]\r\n",storageSize);
+	Xil_Out32(CONFIG_SPACE_SECTOR_COUNT, storageSize * Mebibyte);
+
+	pageBufLpn = 0xffffffff;	// page buffer initialization
+
 	while(1)
 	{
-		DebugPrint("/*****************************************\n\r");
-		CheckRequest();//update requestHeadPtr later does not necessary
 
-		/*DebugPrint("CONFIG_SPACE_STATUS = 0x%x\n\r", 					Xil_In32(CONFIG_SPACE_STATUS));
-		DebugPrint("CONFIG_SPACE_INTERRUPT_SET = 0x%x\n\r", 			Xil_In32(CONFIG_SPACE_INTERRUPT_SET));
-		DebugPrint("CONFIG_SPACE_REQUEST_BASE_ADDR_U = 0x%x\n\r", 		Xil_In32(CONFIG_SPACE_REQUEST_BASE_ADDR_U));
-		DebugPrint("CONFIG_SPACE_REQUEST_BASE_ADDR_L = 0x%x\n\r", 		Xil_In32(CONFIG_SPACE_REQUEST_BASE_ADDR_L));
-		DebugPrint("CONFIG_SPACE_REQUEST_HEAD_PTR_SET = 0x%x\n\r", 		Xil_In32(CONFIG_SPACE_REQUEST_HEAD_PTR_SET));
-		DebugPrint("CONFIG_SPACE_REQUEST_TAIL_PTR = 0x%x\n\r", 			Xil_In32(CONFIG_SPACE_REQUEST_TAIL_PTR));
-		DebugPrint("CONFIG_SPACE_COMPLETION_BASE_ADDR_U = 0x%x\n\r", 	Xil_In32(CONFIG_SPACE_COMPLETION_BASE_ADDR_U));
-		DebugPrint("CONFIG_SPACE_COMPLETION_BASE_ADDR_L = 0x%x\n\r", 	Xil_In32(CONFIG_SPACE_COMPLETION_BASE_ADDR_L));
-		DebugPrint("CONFIG_SPACE_COMPLETION_HEAD_PTR = 0x%x\n\r",	 	Xil_In32(CONFIG_SPACE_COMPLETION_HEAD_PTR));*/
-		GetRequestCmd(&hostCmd);
+		checkRequest = CheckRequest();
 
-		hostCmd.CmdStatus = COMMAND_STATUS_SUCCESS;
-		hostCmd.ErrorStatus = IDE_ERROR_NOTHING;
-
-		if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
+		if(checkRequest == 0)
 		{
-			PrePmRead(&hostCmd, RAM_DISK_BASE_ADDR);
-
-			deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.currentSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
-			reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
-			scatterLength = hostCmd.reqInfo.HostScatterLen;
-
-//			xil_printf("reqSize: %2d KB\r\n", reqSize / 1024);
-
-			DmaHostToDevice(&hostCmd, deviceAddr, reqSize, scatterLength);
-
-			PmWrite(&hostCmd, RAM_DISK_BASE_ADDR);
-
-			CompleteCmd(&hostCmd);
-		}
-
-		else if((hostCmd.reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (hostCmd.reqInfo.Cmd == IDE_COMMAND_READ))
-		{
-			PmRead(&hostCmd, RAM_DISK_BASE_ADDR);
-
-			deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.currentSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
-			reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
-			scatterLength = hostCmd.reqInfo.HostScatterLen;
-
-//			xil_printf("reqSize: %2d KB\r\n", reqSize / 1024);
-
-			DmaDeviceToHost(&hostCmd, deviceAddr, reqSize, scatterLength);
-
-			CompleteCmd(&hostCmd);
-		}
-		else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_FLUSH_CACHE )
-		{
-			DebugPrint("flush command\r\n");
-			CompleteCmd(&hostCmd);
-		}
-		else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_IDENTIFY )
-		{
-			reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
-			scatterLength = hostCmd.reqInfo.HostScatterLen;
-
-			DmaDeviceToHost(&hostCmd, IDENTIFY_DEVICE_DATA_BASE_ADDR, reqSize, scatterLength);
-			CompleteCmd(&hostCmd);
-		}
-		else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SET_FEATURE )
-		{
-			SetIdentifyData(pIdentifyData, &hostCmd);
-			CompleteCmd(&hostCmd);
-		}
-		else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SECURITY_FREEZE_LOCK )
-		{
-			SetIdentifyData(pIdentifyData, &hostCmd);
-			CompleteCmd(&hostCmd);
-		}
-		else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SMART )
-		{
-			DebugPrint("not support IDE_COMMAND_SMART:%x\r\n", hostCmd.reqInfo.Cmd);
-			hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
-			CompleteCmd(&hostCmd);
-		}
-		else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_ATAPI_IDENTIFY )
-		{
-			DebugPrint("not support IDE_COMMAND_ATAPI_IDENTIFY:%x\r\n", hostCmd.reqInfo.Cmd);
-			hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
-			CompleteCmd(&hostCmd);
+			//shutdown handling
+			print("------ Shutdown ------\r\n");
 		}
 		else
 		{
-			DebugPrint("not support command:%x\r\n", hostCmd.reqInfo.Cmd);
-			hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
-			CompleteCmd(&hostCmd);
+			/*DebugPrint("CONFIG_SPACE_STATUS = 0x%x\n\r", 					Xil_In32(CONFIG_SPACE_STATUS));
+			DebugPrint("CONFIG_SPACE_INTERRUPT_SET = 0x%x\n\r", 			Xil_In32(CONFIG_SPACE_INTERRUPT_SET));
+			DebugPrint("CONFIG_SPACE_REQUEST_BASE_ADDR_U = 0x%x\n\r", 		Xil_In32(CONFIG_SPACE_REQUEST_BASE_ADDR_U));
+			DebugPrint("CONFIG_SPACE_REQUEST_BASE_ADDR_L = 0x%x\n\r", 		Xil_In32(CONFIG_SPACE_REQUEST_BASE_ADDR_L));
+			DebugPrint("CONFIG_SPACE_REQUEST_HEAD_PTR_SET = 0x%x\n\r", 		Xil_In32(CONFIG_SPACE_REQUEST_HEAD_PTR_SET));
+			DebugPrint("CONFIG_SPACE_REQUEST_TAIL_PTR = 0x%x\n\r", 			Xil_In32(CONFIG_SPACE_REQUEST_TAIL_PTR));
+			DebugPrint("CONFIG_SPACE_COMPLETION_BASE_ADDR_U = 0x%x\n\r", 	Xil_In32(CONFIG_SPACE_COMPLETION_BASE_ADDR_U));
+			DebugPrint("CONFIG_SPACE_COMPLETION_BASE_ADDR_L = 0x%x\n\r", 	Xil_In32(CONFIG_SPACE_COMPLETION_BASE_ADDR_L));
+			DebugPrint("CONFIG_SPACE_COMPLETION_HEAD_PTR = 0x%x\n\r",	 	Xil_In32(CONFIG_SPACE_COMPLETION_HEAD_PTR));*/
+			GetRequestCmd(&hostCmd);
+
+			hostCmd.CmdStatus = COMMAND_STATUS_SUCCESS;
+			hostCmd.ErrorStatus = IDE_ERROR_NOTHING;
+
+			if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
+			{
+//				xil_printf("write(%d, %d)\r\n", hostCmd.reqInfo.CurSect, hostCmd.reqInfo.ReqSect);
+
+				PrePmRead(&hostCmd, RAM_DISK_BASE_ADDR);
+
+				deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
+				reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
+				scatterLength = hostCmd.reqInfo.HostScatterNum;
+
+				DmaHostToDevice(&hostCmd, deviceAddr, reqSize, scatterLength);
+
+				PmWrite(&hostCmd, RAM_DISK_BASE_ADDR);
+
+				CompleteCmd(&hostCmd);
+			}
+
+			else if((hostCmd.reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (hostCmd.reqInfo.Cmd == IDE_COMMAND_READ))
+			{
+//				xil_printf("read(%d, %d)\r\n", hostCmd.reqInfo.CurSect, hostCmd.reqInfo.ReqSect);
+
+				PmRead(&hostCmd, RAM_DISK_BASE_ADDR);
+
+				deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
+				reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
+				scatterLength = hostCmd.reqInfo.HostScatterNum;
+
+				DmaDeviceToHost(&hostCmd, deviceAddr, reqSize, scatterLength);
+
+				CompleteCmd(&hostCmd);
+			}
+			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_FLUSH_CACHE )
+			{
+				DebugPrint("flush command\r\n");
+				CompleteCmd(&hostCmd);
+			}
+			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_IDENTIFY )
+			{
+				reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
+				scatterLength = hostCmd.reqInfo.HostScatterNum;
+
+				DmaDeviceToHost(&hostCmd, IDENTIFY_DEVICE_DATA_BASE_ADDR, reqSize, scatterLength);
+				CompleteCmd(&hostCmd);
+			}
+			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SET_FEATURE )
+			{
+				SetIdentifyData(pIdentifyData, &hostCmd);
+				CompleteCmd(&hostCmd);
+			}
+			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SECURITY_FREEZE_LOCK )
+			{
+				SetIdentifyData(pIdentifyData, &hostCmd);
+				CompleteCmd(&hostCmd);
+			}
+			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SMART )
+			{
+				DebugPrint("not support IDE_COMMAND_SMART:%x\r\n", hostCmd.reqInfo.Cmd);
+				hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
+				CompleteCmd(&hostCmd);
+			}
+			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_ATAPI_IDENTIFY )
+			{
+				DebugPrint("not support IDE_COMMAND_ATAPI_IDENTIFY:%x\r\n", hostCmd.reqInfo.Cmd);
+				hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
+				CompleteCmd(&hostCmd);
+			}
+			else
+			{
+				DebugPrint("not support command:%x\r\n", hostCmd.reqInfo.Cmd);
+				hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
+				CompleteCmd(&hostCmd);
+			}
 		}
 	}
 }

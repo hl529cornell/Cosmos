@@ -3,6 +3,7 @@
 // Copyright (c) 2014 Hanyang University ENC Lab.
 // Contributed by Yong Ho Song <yhsong@enc.hanyang.ac.kr>
 //                Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//				  Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 //
 // This file is part of Cosmos OpenSSD.
 //
@@ -24,13 +25,14 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Company: ENC Lab. <http://enc.hanyang.ac.kr>
 // Engineer: Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//			 Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 //
 // Project Name: Cosmos OpenSSD
 // Design Name: Greedy FTL
 // Module Name: Flash Translation Layer
 // File Name: ftl.h
 //
-// Version: v1.0.0
+// Version: v1.0.2
 //
 // Description:
 //   - define NAND flash memory and SSD parameters
@@ -39,6 +41,12 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Revision History:
 //
+// * v1.0.2
+//   - add constant to calculate ssd size
+//
+// * v1.0.1
+//   - replace bitwise operation with decimal operation
+//
 // * v1.0.0
 //   - First draft
 //////////////////////////////////////////////////////////////////////////////////
@@ -46,46 +54,29 @@
 #ifndef	FTL_H_
 #define	FTL_H_
 
-// bitwise representation
-#define	SECTOR_SIZE_B			9
+#define	SECTOR_SIZE_FTL			512
 
-#define	PAGE_SIZE_B				13	// 8KB
-#define	PAGE_NUM_PER_BLOCK_B	8	// 256
-#define	BLOCK_NUM_PER_DIE_B		12	// 4096
+#define	PAGE_SIZE				8192  //8KB
+#define	PAGE_NUM_PER_BLOCK		256
+#define	BLOCK_NUM_PER_DIE		4096
+#define	BLOCK_SIZE_MB			((PAGE_SIZE * PAGE_NUM_PER_BLOCK) / (1024 * 1024))
 
-#define	CHANNEL_NUM_B			2
-#define	WAY_NUM_B				2
-#define	DIE_NUM_B				(CHANNEL_NUM_B + WAY_NUM_B)
+#define	CHANNEL_NUM				4
+#define	WAY_NUM					4
+#define	DIE_NUM					(CHANNEL_NUM * WAY_NUM)
 
-#define	SECTOR_NUM_PER_PAGE_B	(PAGE_SIZE_B - SECTOR_SIZE_B)
+#define	SECTOR_NUM_PER_PAGE		(PAGE_SIZE / SECTOR_SIZE_FTL)
 
-#define	PAGE_NUM_PER_DIE_B		(PAGE_NUM_PER_BLOCK_B + BLOCK_NUM_PER_DIE_B)
-#define	PAGE_NUM_PER_CHANNEL_B	(PAGE_NUM_PER_DIE_B + WAY_NUM_B)
-#define	PAGE_NUM_PER_SSD_B		(PAGE_NUM_PER_CHANNEL_B + CHANNEL_NUM_B)
+#define	PAGE_NUM_PER_DIE		(PAGE_NUM_PER_BLOCK * BLOCK_NUM_PER_DIE)
+#define	PAGE_NUM_PER_CHANNEL	(PAGE_NUM_PER_DIE * WAY_NUM)
+#define	PAGE_NUM_PER_SSD		(PAGE_NUM_PER_CHANNEL * CHANNEL_NUM)
 
-#define	BLOCK_NUM_PER_CHANNEL_B	(BLOCK_NUM_PER_DIE_B + WAY_NUM_B)
-#define	BLOCK_NUM_PER_SSD_B		(BLOCK_NUM_PER_CHANNEL_B + CHANNEL_NUM_B)
+#define	BLOCK_NUM_PER_CHANNEL	(BLOCK_NUM_PER_DIE * WAY_NUM)
+#define	BLOCK_NUM_PER_SSD		(BLOCK_NUM_PER_CHANNEL * CHANNEL_NUM)
 
-// shift bitwise representation
-#define	PAGE_SIZE				(0x1 << PAGE_SIZE_B)
-#define	PAGE_NUM_PER_BLOCK		(0x1 << PAGE_NUM_PER_BLOCK_B)
-#define	BLOCK_NUM_PER_DIE		(0x1 << BLOCK_NUM_PER_DIE_B)
-
-#define	CHANNEL_NUM				(0x1 << CHANNEL_NUM_B)
-#define	WAY_NUM					(0x1 << WAY_NUM_B)
-#define	DIE_NUM					(0x1 << DIE_NUM_B)
-
-#define	SECTOR_NUM_PER_PAGE		(0x1 << SECTOR_NUM_PER_PAGE_B)
-
-#define	PAGE_NUM_PER_DIE		(0x1 << PAGE_NUM_PER_DIE_B)
-#define	PAGE_NUM_PER_CHANNEL	(0x1 << PAGE_NUM_PER_CHANNEL_B)
-#define	PAGE_NUM_PER_SSD		(0x1 << PAGE_NUM_PER_SSD_B)
-
-#define	BLOCK_NUM_PER_CHANNEL	(0x1 << BLOCK_NUM_PER_CHANNEL_B)
-#define	BLOCK_NUM_PER_SSD		(0x1 << BLOCK_NUM_PER_SSD_B)
-
-// bitwise modulo operation
-#define	MODULAR(X)				((0x1 << (X)) - 1)
+#define SSD_SIZE				(BLOCK_NUM_PER_SSD * BLOCK_SIZE_MB) //MB
+#define FREE_BLOCK_SIZE			(DIE_NUM * BLOCK_SIZE_MB)	//MB
+#define METADATA_BLOCK_SIZE		(1 * BLOCK_SIZE_MB)	//MB
 
 void InitNandReset();
 void InitFtlMapTable();

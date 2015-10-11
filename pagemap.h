@@ -3,6 +3,7 @@
 // Copyright (c) 2014 Hanyang University ENC Lab.
 // Contributed by Yong Ho Song <yhsong@enc.hanyang.ac.kr>
 //                Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//			      Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 //
 // This file is part of Cosmos OpenSSD.
 //
@@ -24,13 +25,14 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Company: ENC Lab. <http://enc.hanyang.ac.kr>
 // Engineer: Gyeongyong Lee <gylee@enc.hanyang.ac.kr>
+//			 Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
 //
 // Project Name: Cosmos OpenSSD
 // Design Name: Greedy FTL
 // Module Name: Page Mapping
 // File Name: page_map.h
 //
-// Version: v2.0.0
+// Version: v2.1.0
 //
 // Description:
 //   - define data structure of map tables
@@ -38,6 +40,12 @@
 
 //////////////////////////////////////////////////////////////////////////////////
 // Revision History:
+//
+// * v2.1.0
+//   - add page buffer to decrease formatting time
+//
+// * v2.0.1
+//   - add constant to check bad blocks
 //
 // * v2.0.0
 //   - modify/add tables to support garbage collection
@@ -54,11 +62,6 @@
 
 #include "host_controller.h"
 #include "ftl.h"
-#include "mem_map.h"
-
-typedef enum {FREE, INACTIVE, ACTIVE} state;
-int STATE_NUM = 3;
-int BIN_NUM = 3;
 
 struct pmEntry {
 	u32 ppn;	// Physical Page Number (PPN) to which a logical page is mapped
@@ -71,43 +74,18 @@ struct pmArray {
 	struct pmEntry pmEntry[DIE_NUM][PAGE_NUM_PER_DIE];
 };
 
-/*
- * Block Status Table Entry
- *
- * The block status table stores the state, number of valid pages
- * and the number of erases for all blocks.
- */
-struct bstEntry{
+struct bmEntry {
 	u32 bad				: 1;
-	u32 free 			: 1;
-	state s;
-	u32 validPageCnt	: 16;
+	u32 free			: 1;
 	u32 eraseCnt		: 30;
-	u32 invalidPageCnt : 16;
-	u32 currentPage    : 16;
-	u32 prevBlock
-};
-
-struct bstArray {
-	struct bstEntry bstEntry[DIE_NUM][BLOCK_NUM_PER_DIE];
-};
-
-struct bfsmEntry {
-	u32 bad				: 1;
-	state s;
-	u32 binNum			: 2;
-	u32 nextBlock;
+	u32 invalidPageCnt	: 16;
+	u32 currentPage		: 16;
 	u32 prevBlock;
+	u32 nextBlock;
 };
 
-struct bfsmArray {
-	u32 head;
-	u32 tail;
-	struct bfsmEntry bfsmEntry[BLOCK_NUM_PER_SSD];
-};
-
-struct bfsmTable {
-	struct bfsmArray bfsmArray[STATE_NUM][BIN_NUM];
+struct bmArray {
+	struct bmEntry bmEntry[DIE_NUM][BLOCK_NUM_PER_DIE];
 };
 
 struct dieEntry {
@@ -129,20 +107,27 @@ struct gcArray {
 };
 
 struct pmArray* pageMap;
-struct bstArray* blockStatusTable;
-struct bfsmTable* blockFSMTable;
-struct dieMap* dieArray;
+struct bmArray* blockMap;
+struct dieArray* dieBlock;
 struct gcArray* gcMap;
 
 // memory addresses for map tables
 #define PAGE_MAP_ADDR	(RAM_DISK_BASE_ADDR + (0x1 << 27))
-#define BST_ADDR		SRAM0_BASE_ADDR
-#define BFSM_ADDR		(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)
-#define DIE_MAP_ADDR	(BFSM_ADDR + (sizeof(struct bfsmEntry) * BLOCK_NUM_PER_SSD + 2*sizeof(u32)) * STATE_NUM * BIN_NUM)
+#define BLOCK_MAP_ADDR	(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)
+#define DIE_MAP_ADDR	(BLOCK_MAP_ADDR + sizeof(struct bmEntry) * BLOCK_NUM_PER_SSD)
 #define GC_MAP_ADDR		(DIE_MAP_ADDR + sizeof(struct dieEntry) * DIE_NUM)
 
 // memory address of buffer for GC migration
 #define GC_BUFFER_ADDR	(GC_MAP_ADDR + sizeof(struct gcEntry) * DIE_NUM*(PAGE_NUM_PER_BLOCK + 1))
+
+#define BAD_BLOCK_MARK_POSITION	(7972)
+#define METADATA_BLOCK_PPN	 	0x00000000 // write metadata to Block0 of Die0
+#define EMPTY_BYTE				0xff
+
+extern u32 BAD_BLOCK_SIZE;
+
+// buffered LPN in the page buffer
+u32 pageBufLpn;
 
 void InitPageMap();
 void InitBlockMap();
@@ -156,5 +141,12 @@ int PmWrite(P_HOST_CMD hostCmd, u32 bufferAddr);
 
 void EraseBlock(u32 dieNo, u32 blockNo);
 u32 GarbageCollection(u32 dieNo);
+
+void CheckBadBlock();
+int CountBits(u8 i);
+
+void FlushPageBuf(u32 lpn, u32 bufAddr);
+void UpdateMetaForOverwrite(u32 lpn);
+//void MvData(u32* src, u32* dst, u32 sectSize);
 
 #endif /* PAGEMAP_H_ */

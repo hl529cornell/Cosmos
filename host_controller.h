@@ -30,17 +30,18 @@
 // Design Name: Host Controller
 // File Name: host_controller.h
 //
-// Version: v1.0.1
+// Version: v1.1.0
 //
 // Description:
-//   - Provides host interface (GetRequestCmd, DmaDeviceToHost, CompleteCmd, ...).
+//   - Provides host interface (GetRequestCmd, DmaDeviceToHost, CompleteCmd, ...)
 //////////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////////
 // Revision History:
 //
-// * v1.0.1
-//   - clean up miscellanea
+// * v1.1.0
+//   - Support shutdown command (not ATA command)
+//   - Move sector count information from driver to device firmware
 //
 // * v1.0.0
 //   - First draft
@@ -65,6 +66,8 @@
 #define CONFIG_SPACE_REQUEST_BASE_ADDR_L		(XPAR_PCI_EXPRESS_PCIEBAR2AXIBAR_0 + 0x08)
 #define CONFIG_SPACE_COMPLETION_BASE_ADDR_U		(XPAR_PCI_EXPRESS_PCIEBAR2AXIBAR_0 + 0x0C)
 #define CONFIG_SPACE_COMPLETION_BASE_ADDR_L		(XPAR_PCI_EXPRESS_PCIEBAR2AXIBAR_0 + 0x10)
+#define CONFIG_SPACE_SHUTDOWN					(XPAR_PCI_EXPRESS_PCIEBAR2AXIBAR_0 + 0x14)
+#define CONFIG_SPACE_SECTOR_COUNT				(XPAR_PCI_EXPRESS_PCIEBAR2AXIBAR_0 + 0x18)
 
 #define REQUEST_IO_BASE_ADDR					0x01000000
 #define COMPLETION_IO_BASE_ADDR					0x01100000
@@ -93,6 +96,11 @@
 #define	COMMAND_STATUS_ERROR				(0x02)
 #define	COMMAND_STATUS_INVALID_REQUEST		(0x03)
 
+
+#define Mebibyte							(1024 * 2)
+#define Gibibyte							(1024 * 1024 * 2)
+
+
 #pragma	pack(push, io_data_struct, 1)
 
 typedef struct _HOST_CONTROLLER_REG
@@ -102,17 +110,19 @@ typedef struct _HOST_CONTROLLER_REG
 	u32	RequestBaseAddrL;
 	u32	CompletionBaseAddrU;
 	u32	CompletionBaseAddrL;
+	u32 Shutdown;
+	u32 SectorCount;
 }HOST_CONTROLLER_REG, *P_HOST_CONTROLLER_REG;
 
 
 typedef struct _REQUEST_IO
 {
 	u32 Cmd;
-	u32 currentSect;
+	u32 CurSect;
 	u32 ReqSect;
 	u32 HostScatterAddrU;
 	u32 HostScatterAddrL;
-	u32 HostScatterLen;
+	u32 HostScatterNum;
 	u32 Reserve[2];
 }REQUEST_IO, *P_REQUEST_IO;
 
@@ -131,7 +141,7 @@ typedef struct _HOST_SCATTER_REGION
 	u32	DmaAddrU;
 	u32	DmaAddrL;
 	u32	Reserve;
-	u32	Length;
+	u32	Size;//bytes
 }HOST_SCATTER_REGION, *P_HOST_SCATTER_REGION;
 
 #pragma	pack (pop, io_data_struct)
@@ -150,6 +160,8 @@ typedef struct _HOST_CMD
 u32 CheckRequest();
 
 u32 GetRequestCmd(P_HOST_CMD hostCmd);
+
+u32 GetHostScatterRegion(P_HOST_CMD hostCmd);
 
 void DmaDeviceToHost(P_HOST_CMD hostCmd, u32 deviceAddr, u32 reqSize, u32 scatterLength);
 

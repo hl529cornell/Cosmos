@@ -86,4 +86,3 @@ void InitFtlMapTable()
 
 	InitGcMap();
 }
-

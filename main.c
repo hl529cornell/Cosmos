@@ -30,7 +30,7 @@
 // Design Name: Main
 // File Name: main.c
 //
-// Version: v1.1.1
+// Version: v1.0.2
 //
 // Description:
 //   - Main function is here.
@@ -39,11 +39,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 // Revision History:
 //
-// * v1.1.1
-//   - add PCIe status check
+// * v1.0.2
+//   - Enable instruction cache
 //
 // * v1.0.1
-//   - clean up miscellanea
+//   - add PCIe status check
 //
 // * v1.0.0
 //   - First draft
@@ -66,7 +66,6 @@
 int main()
 {
 	Xil_DCacheDisable();
-	Xil_ICacheDisable();
 
 	print("\r\n---------------------------------\r\n");
 	print("------ SSD firmware start -------\r\n");
@@ -76,5 +75,5 @@ int main()
 
 	ReqHandler();
 
-	return 0;
+    return 0;
 }
