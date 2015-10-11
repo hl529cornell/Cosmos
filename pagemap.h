@@ -71,11 +71,21 @@ struct pmArray {
 	struct pmEntry pmEntry[DIE_NUM][PAGE_NUM_PER_DIE];
 };
 
+/*
+ * Block Status Table Entry
+ *
+ * The block status table stores the state, number of valid pages
+ * and the number of erases for all blocks.
+ */
 struct bstEntry{
 	u32 bad				: 1;
+	u32 free 			: 1;
 	state s;
 	u32 validPageCnt	: 16;
 	u32 eraseCnt		: 30;
+	u32 invalidPageCnt : 16;
+	u32 currentPage    : 16;
+	u32 prevBlock
 };
 
 struct bstArray {
@@ -97,8 +107,8 @@ struct bfsmArray {
 };
 
 struct bfsmTable {
-	struct bfsmArray bfsmArray[STATE_NUM][BIN_NUM]
-}
+	struct bfsmArray bfsmArray[STATE_NUM][BIN_NUM];
+};
 
 struct dieEntry {
 	u32 currentBlock;
@@ -126,7 +136,7 @@ struct gcArray* gcMap;
 
 // memory addresses for map tables
 #define PAGE_MAP_ADDR	(RAM_DISK_BASE_ADDR + (0x1 << 27))
-#define BST_ADDR		SRAM_0_BASE_ADDR
+#define BST_ADDR		SRAM0_BASE_ADDR
 #define BFSM_ADDR		(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)
 #define DIE_MAP_ADDR	(BFSM_ADDR + (sizeof(struct bfsmEntry) * BLOCK_NUM_PER_SSD + 2*sizeof(u32)) * STATE_NUM * BIN_NUM)
 #define GC_MAP_ADDR		(DIE_MAP_ADDR + sizeof(struct dieEntry) * DIE_NUM)

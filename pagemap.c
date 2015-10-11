@@ -125,42 +125,42 @@ void InitBlockMap()
 	// mark bad blocks by bad flag
 	for (i = 0; i < DIE_NUM; ++i)
 	{
-		blockMap->bmEntry[i][90].bad = 1;	// mark 90-block of all dies as bad block
-		blockMap->bmEntry[i][91].bad = 1;	// mark 91-block of all dies as bad block
+		blockStatusTable->bmEntry[i][90].bad = 1;	// mark 90-block of all dies as bad block
+		blockStatusTable->bmEntry[i][91].bad = 1;	// mark 91-block of all dies as bad block
 	}
 
 	u32 dieNo = 0 + 3*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][820].bad = 1;	// mark 0-ch, 3-way, 820-block as bad block
+	blockStatusTable->bmEntry[dieNo][820].bad = 1;	// mark 0-ch, 3-way, 820-block as bad block
 	dieNo = 3 + 2*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][1050].bad = 1;	// mark 3-ch, 2-way, 1050-block as bad block
+	blockStatusTable->bmEntry[dieNo][1050].bad = 1;	// mark 3-ch, 2-way, 1050-block as bad block
 	dieNo = 2 + 1*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][1799].bad = 1;
+	blockStatusTable->bmEntry[dieNo][1799].bad = 1;
 	dieNo = 2 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][2206].bad = 1;
+	blockStatusTable->bmEntry[dieNo][2206].bad = 1;
 	dieNo = 1 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][2945].bad = 1;
+	blockStatusTable->bmEntry[dieNo][2945].bad = 1;
 	dieNo = 2 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3064].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3064].bad = 1;
 	dieNo = 2 + 1*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3121].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3121].bad = 1;
 	dieNo = 2 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3176].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3176].bad = 1;
 	dieNo = 2 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3178].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3178].bad = 1;
 	dieNo = 3 + 2*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3228].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3228].bad = 1;
 	dieNo = 1 + 3*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3237].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3237].bad = 1;
 	dieNo = 2 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3368].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3368].bad = 1;
 	dieNo = 2 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][3774].bad = 1;
+	blockStatusTable->bmEntry[dieNo][3774].bad = 1;
 	dieNo = 2 + 0*CHANNEL_NUM;
-	blockMap->bmEntry[dieNo][4016].bad = 1;	// mark 2-ch, 0-way, 4016-block as bad block
+	blockStatusTable->bmEntry[dieNo][4016].bad = 1;	// mark 2-ch, 0-way, 4016-block as bad block
 
 	for (i = 0; i < BLOCK_NUM_PER_DIE; ++i)
 		for (j = 0; j < DIE_NUM; ++j)
-			if (!blockMap->bmEntry[j][i].bad)
+			if (!blockStatusTable->bmEntry[j][i].bad)
 			{
 				// initial block erase
 				WaitWayFree(j % CHANNEL_NUM, j / CHANNEL_NUM);
@@ -172,11 +172,11 @@ void InitBlockMap()
 	for(i=0 ; i<DIE_NUM ; i++)
 	{
 		// initially, 0th block of each die is allocated for storage start point
-		blockMap->bmEntry[i][0].free = 0;
-		blockMap->bmEntry[i][0].currentPage = 0xffff;
+		blockStatusTable->bmEntry[i][0].free = 0;
+		blockStatusTable->bmEntry[i][0].currentPage = 0xffff;
 
 		// initially, the last block of each die is reserved as free block for GC migration
-		blockMap->bmEntry[i][BLOCK_NUM_PER_DIE-1].free = 0;
+		blockStatusTable->bmEntry[i][BLOCK_NUM_PER_DIE-1].free = 0;
 	}
 
 	xil_printf("[ ssd block map initialized. ]\r\n");
@@ -220,19 +220,19 @@ void InitGcMap()
 
 int FindFreePage(u32 dieNo)
 {
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct bmArray*)(BLOCK_MAP_ADDR);
 	dieBlock = (struct dieArray*)(DIE_MAP_ADDR);
 
-	if(blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage == PAGE_NUM_PER_BLOCK-1)
+	if(blockStatusTable->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage == PAGE_NUM_PER_BLOCK-1)
 	{
 		dieBlock->dieEntry[dieNo].currentBlock++;
 
 		int i;
 		for(i=dieBlock->dieEntry[dieNo].currentBlock ; i<(dieBlock->dieEntry[dieNo].currentBlock + BLOCK_NUM_PER_DIE) ; i++)
 		{
-			if((blockMap->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].free) && (!blockMap->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].bad))
+			if((blockStatusTable->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].free) && (!blockStatusTable->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].bad))
 			{
-				blockMap->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].free = 0;
+				blockStatusTable->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].free = 0;
 				dieBlock->dieEntry[dieNo].currentBlock = i % BLOCK_NUM_PER_DIE;
 
 //				xil_printf("allocated free block: %4d at %d-%d\r\n", dieBlock->dieEntry[dieNo].currentBlock, dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
@@ -245,12 +245,12 @@ int FindFreePage(u32 dieNo)
 
 //		xil_printf("allocated free block by GC: %4d at %d-%d\r\n", dieBlock->dieEntry[dieNo].currentBlock, dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 
-		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
+		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockStatusTable->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
 	}
 	else
 	{
-		blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage++;
-		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
+		blockStatusTable->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage++;
+		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockStatusTable->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
 	}
 }
 
