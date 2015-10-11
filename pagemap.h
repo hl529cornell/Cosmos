@@ -63,6 +63,10 @@
 #include "host_controller.h"
 #include "ftl.h"
 
+typedef enum {FREE, INACTIVE, ACTIVE} state;
+#define STATE_NUM 3
+#define BIN_NUM 3
+
 struct pmEntry {
 	u32 ppn;	// Physical Page Number (PPN) to which a logical page is mapped
 
@@ -74,18 +78,45 @@ struct pmArray {
 	struct pmEntry pmEntry[DIE_NUM][PAGE_NUM_PER_DIE];
 };
 
-struct bmEntry {
+/*
+ * Block Status Table Entry
+ *
+ * The block status table stores the state, number of valid pages
+ * and the number of erases for all blocks.
+ */
+struct bstEntry{
 	u32 bad				: 1;
-	u32 free			: 1;
+	u32 free			: 1;  // Whether we can use this block to store data or not. Some blocks are
+							  // reserved for other uses such as metadata storage.
+	state s;
+	u32 validPageCnt	: 16;
 	u32 eraseCnt		: 30;
-	u32 invalidPageCnt	: 16;
-	u32 currentPage		: 16;
+	u32 invalidPageCnt : 16;
+	u32 currentPage    : 16;
 	u32 prevBlock;
 	u32 nextBlock;
 };
 
-struct bmArray {
-	struct bmEntry bmEntry[DIE_NUM][BLOCK_NUM_PER_DIE];
+struct bstArray {
+	struct bstEntry bstEntry[DIE_NUM][BLOCK_NUM_PER_DIE];
+};
+
+struct bfsmEntry {
+	u32 bad				: 1;
+	state s;
+	u32 binNum			: 2;
+	u32 nextBlock;
+	u32 prevBlock;
+};
+
+struct bfsmArray {
+	u32 head;
+	u32 tail;
+	struct bfsmEntry bfsmEntry[BLOCK_NUM_PER_SSD];
+};
+
+struct bfsmTable {
+	struct bfsmArray bfsmArray[STATE_NUM][BIN_NUM];
 };
 
 struct dieEntry {
@@ -107,14 +138,16 @@ struct gcArray {
 };
 
 struct pmArray* pageMap;
-struct bmArray* blockMap;
+struct bstArray* blockStatusTable;
+struct bfsmTable* blockFSMTable;
 struct dieArray* dieBlock;
 struct gcArray* gcMap;
 
 // memory addresses for map tables
 #define PAGE_MAP_ADDR	(RAM_DISK_BASE_ADDR + (0x1 << 27))
-#define BLOCK_MAP_ADDR	(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)
-#define DIE_MAP_ADDR	(BLOCK_MAP_ADDR + sizeof(struct bmEntry) * BLOCK_NUM_PER_SSD)
+#define BST_ADDR		SRAM0_BASE_ADDR
+#define BFSM_ADDR		(PAGE_MAP_ADDR + sizeof(struct bstEntry) * BLOCK_NUM_PER_SSD)
+#define DIE_MAP_ADDR	(BFSM_ADDR + (sizeof(struct bfsmEntry) * BLOCK_NUM_PER_SSD + 2*sizeof(u32)) * STATE_NUM * BIN_NUM)
 #define GC_MAP_ADDR		(DIE_MAP_ADDR + sizeof(struct dieEntry) * DIE_NUM)
 
 // memory address of buffer for GC migration

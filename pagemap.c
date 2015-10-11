@@ -63,6 +63,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 #include "pagemap.h"
+#include "mem_map.h"
 
 #include <assert.h>
 
@@ -94,28 +95,70 @@ void InitPageMap()
 
 void InitBlockMap()
 {
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct bstArray*)(BST_ADDR);
+	blockFSMTable = (struct bfsmTable*)(BFSM_ADDR);
+	dieBlock = (struct dieArray*)(DIE_MAP_ADDR);
+	gcMap = (struct gcArray*)(GC_MAP_ADDR);
+	u32 x = GC_MAP_ADDR;
+	u32 y = BST_ADDR;
+	u32 z = PAGE_MAP_ADDR;
+	int k, l;
+	u32 block_num;
 
 	CheckBadBlock();
 
-	// block status initialization except bad block marks, allows only physical access
+	for (k = 0; k < STATE_NUM; k++) {
+		for (l = 0; l < BIN_NUM; l++) {
+			blockFSMTable->bfsmArray[k][l].head = 0xffffffff;
+			blockFSMTable->bfsmArray[k][l].tail = 0xffffffff;
+		}
+	}
+
+	// block status initialization, allows only physical access
 	int i, j;
 	for(i=0 ; i<BLOCK_NUM_PER_DIE ; i++)
 	{
 		for(j=0 ; j<DIE_NUM ; j++)
 		{
-			blockMap->bmEntry[j][i].free = 1;
-			blockMap->bmEntry[j][i].eraseCnt = 0;
-			blockMap->bmEntry[j][i].invalidPageCnt = 0;
-			blockMap->bmEntry[j][i].currentPage = 0x0;
-			blockMap->bmEntry[j][i].prevBlock = 0xffffffff;
-			blockMap->bmEntry[j][i].nextBlock = 0xffffffff;
+			// initialize block state table
+			blockStatusTable->bstEntry[j][i].s = INACTIVE;
+			blockStatusTable->bstEntry[j][i].validPageCnt = 0;
+			blockStatusTable->bstEntry[j][i].invalidPageCnt = 0;
+			blockStatusTable->bstEntry[j][i].eraseCnt = 0;
+			blockStatusTable->bstEntry[j][i].currentPage = 0x0;
+			blockStatusTable->bstEntry[j][i].prevBlock = 0xffffffff;
+			blockStatusTable->bstEntry[j][i].nextBlock = 0xffffffff;
+			block_num = i * j + i;
+
+			// initialize block FSM table
+			//
+			// The doubly linked-list is set up in such a way that the next and previous values
+			// refer to the _index_ of the bfsmEntry. The same goes for head and tail values.
+			// This is to make sure that we have a linked-list data structure in a contiguous
+			// memory space.
+			blockFSMTable->bfsmArray[INACTIVE][0].bfsmEntry[block_num].bad = 0;
+			blockFSMTable->bfsmArray[INACTIVE][0].bfsmEntry[block_num].s = INACTIVE;
+			blockFSMTable->bfsmArray[INACTIVE][0].bfsmEntry[block_num].binNum = 0;
+			if (block_num == 0) {
+				blockFSMTable->bfsmArray[INACTIVE][0].head = block_num;
+				blockFSMTable->bfsmArray[INACTIVE][0].bfsmEntry[block_num].prevBlock = 0xffffffff;
+			}
+			else { 
+				if (block_num == BLOCK_NUM_PER_DIE * DIE_NUM - 1) {
+				    blockFSMTable->bfsmArray[INACTIVE][0].tail = block_num;
+				    blockFSMTable->bfsmArray[INACTIVE][0].bfsmEntry[block_num].nextBlock = 0xffffffff;
+				}
+				blockFSMTable->bfsmArray[INACTIVE][0].bfsmEntry[block_num].prevBlock =
+						block_num - 1;
+				blockFSMTable->bfsmArray[INACTIVE][0].bfsmEntry[block_num-1].nextBlock =
+						block_num + 1;
+			}
 		}
 	}
 
 	for (i = 0; i < BLOCK_NUM_PER_DIE; ++i)
 		for (j = 0; j < DIE_NUM; ++j)
-			if (!blockMap->bmEntry[j][i].bad && ((i != METADATA_BLOCK_PPN % DIE_NUM)|| (j != (METADATA_BLOCK_PPN / DIE_NUM) / PAGE_NUM_PER_BLOCK)))
+			if (!blockStatusTable->bstEntry[j][i].bad && ((i != METADATA_BLOCK_PPN % DIE_NUM)|| (j != (METADATA_BLOCK_PPN / DIE_NUM) / PAGE_NUM_PER_BLOCK)))
 			{
 				// initial block erase
 				WaitWayFree(j % CHANNEL_NUM, j / CHANNEL_NUM);
@@ -128,21 +171,21 @@ void InitBlockMap()
 	for(i=0 ; i<DIE_NUM ; i++)
 	{
 		// initially, 0th block of each die is allocated for storage start point
-		blockMap->bmEntry[i][0].free = 0;
-		blockMap->bmEntry[i][0].currentPage = 0xffff;
+		blockStatusTable->bstEntry[i][0].free = 0;
+		blockStatusTable->bstEntry[i][0].currentPage = 0xffff;
 		// initially, the last block of each die is reserved as free block for GC migration
-		blockMap->bmEntry[i][BLOCK_NUM_PER_DIE-1].free = 0;
+		blockStatusTable->bstEntry[i][BLOCK_NUM_PER_DIE-1].free = 0;
 	}
 	//block0 of die0 is metadata block
-	blockMap->bmEntry[0][1].free = 0;
-	blockMap->bmEntry[0][1].currentPage = 0xffff;
+	blockStatusTable->bstEntry[0][1].free = 0;
+	blockStatusTable->bstEntry[0][1].currentPage = 0xffff;
 
 	xil_printf("[ ssd block map initialized. ]\r\n");
 }
 
 void CheckBadBlock()
 {
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct bstArray*)(BST_ADDR);
 	u32 dieNo, diePpn, blockNo, tempBuffer, badBlockCount;
 	u8* shifter;
 	u8* markPointer;
@@ -174,7 +217,7 @@ void CheckBadBlock()
 		for(blockNo=0; blockNo < BLOCK_NUM_PER_DIE; blockNo++)
 			for(dieNo=0; dieNo < DIE_NUM; dieNo++)
 			{
-				blockMap->bmEntry[dieNo][blockNo].bad = 0;
+				blockStatusTable->bstEntry[dieNo][blockNo].bad = 0;
 
 				SsdRead(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, (blockNo*PAGE_NUM_PER_BLOCK+1), RAM_DISK_BASE_ADDR);
 				WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
@@ -182,11 +225,11 @@ void CheckBadBlock()
 				if(CountBits(*markPointer)<4)
 				{
 					xil_printf("Bad block is detected on: Ch %d Way %d Block %d \r\n",dieNo%CHANNEL_NUM, dieNo/CHANNEL_NUM, blockNo);
-					blockMap->bmEntry[dieNo][blockNo].bad = 1;
+					blockStatusTable->bstEntry[dieNo][blockNo].bad = 1;
 					badBlockCount++;
 				}
 				shifter= (u8*)(GC_BUFFER_ADDR + blockNo + dieNo *BLOCK_NUM_PER_DIE );//gather badblock mark at GC buffer
-				*shifter = blockMap->bmEntry[dieNo][blockNo].bad;
+				*shifter = blockStatusTable->bstEntry[dieNo][blockNo].bad;
 			}
 
 		// save bad block mark
@@ -216,8 +259,8 @@ void CheckBadBlock()
 			for(dieNo=0; dieNo<DIE_NUM; dieNo++)
 			{
 				shifter = (u8*)(RAM_DISK_BASE_ADDR + blockNo + dieNo *BLOCK_NUM_PER_DIE );
-				blockMap->bmEntry[dieNo][blockNo].bad = *shifter;
-				if(blockMap->bmEntry[dieNo][blockNo].bad)
+				blockStatusTable->bstEntry[dieNo][blockNo].bad = *shifter;
+				if(blockStatusTable->bstEntry[dieNo][blockNo].bad)
 				{
 					xil_printf("Bad block mark is checked at: Ch %d Way %d Block %d  \r\n",dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, blockNo );
 					badBlockCount++;
@@ -285,19 +328,19 @@ void InitGcMap()
 
 int FindFreePage(u32 dieNo)
 {
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct bstArray*)(BST_ADDR);
 	dieBlock = (struct dieArray*)(DIE_MAP_ADDR);
 
-	if(blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage == PAGE_NUM_PER_BLOCK-1)
+	if(blockStatusTable->bstEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage == PAGE_NUM_PER_BLOCK-1)
 	{
 		dieBlock->dieEntry[dieNo].currentBlock++;
 
 		int i;
 		for(i=dieBlock->dieEntry[dieNo].currentBlock ; i<(dieBlock->dieEntry[dieNo].currentBlock + BLOCK_NUM_PER_DIE) ; i++)
 		{
-			if((blockMap->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].free) && (!blockMap->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].bad))
+			if((blockStatusTable->bstEntry[dieNo][i % BLOCK_NUM_PER_DIE].s == INACTIVE) && (!blockStatusTable->bstEntry[dieNo][i % BLOCK_NUM_PER_DIE].bad))
 			{
-				blockMap->bmEntry[dieNo][i % BLOCK_NUM_PER_DIE].free = 0;
+				blockStatusTable->bstEntry[dieNo][i % BLOCK_NUM_PER_DIE].s = FREE;
 				dieBlock->dieEntry[dieNo].currentBlock = i % BLOCK_NUM_PER_DIE;
 
 //				xil_printf("allocated free block: %4d at %d-%d\r\n", dieBlock->dieEntry[dieNo].currentBlock, dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
@@ -310,12 +353,12 @@ int FindFreePage(u32 dieNo)
 
 //		xil_printf("allocated free block by GC: %4d at %d-%d\r\n", dieBlock->dieEntry[dieNo].currentBlock, dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 
-		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
+		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockStatusTable->bstEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
 	}
 	else
 	{
-		blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage++;
-		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockMap->bmEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
+		blockStatusTable->bstEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage++;
+		return (dieBlock->dieEntry[dieNo].currentBlock * PAGE_NUM_PER_BLOCK) + blockStatusTable->bstEntry[dieNo][dieBlock->dieEntry[dieNo].currentBlock].currentPage;
 	}
 }
 
@@ -492,15 +535,15 @@ int PmWrite(P_HOST_CMD hostCmd, u32 bufferAddr)
 void EraseBlock(u32 dieNo, u32 blockNo)
 {
 	pageMap = (struct pmArray*)(PAGE_MAP_ADDR);
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct bstArray*)(BST_ADDR);
 
 	// block map indicated blockNo initialization
-	blockMap->bmEntry[dieNo][blockNo].free = 1;
-	blockMap->bmEntry[dieNo][blockNo].eraseCnt++;
-	blockMap->bmEntry[dieNo][blockNo].invalidPageCnt = 0;
-	blockMap->bmEntry[dieNo][blockNo].currentPage = 0x0;
-	blockMap->bmEntry[dieNo][blockNo].prevBlock = 0xffffffff;
-	blockMap->bmEntry[dieNo][blockNo].nextBlock = 0xffffffff;
+	blockStatusTable->bstEntry[dieNo][blockNo].free = 1;
+	blockStatusTable->bstEntry[dieNo][blockNo].eraseCnt++;
+	blockStatusTable->bstEntry[dieNo][blockNo].invalidPageCnt = 0;
+	blockStatusTable->bstEntry[dieNo][blockNo].currentPage = 0x0;
+	blockStatusTable->bstEntry[dieNo][blockNo].prevBlock = 0xffffffff;
+	blockStatusTable->bstEntry[dieNo][blockNo].nextBlock = 0xffffffff;
 
 	int i;
 	for(i=0 ; i<PAGE_NUM_PER_BLOCK ; i++)
@@ -518,7 +561,7 @@ u32 GarbageCollection(u32 dieNo)
 	xil_printf("GC occurs!\r\n");
 
 	pageMap = (struct pmArray*)(PAGE_MAP_ADDR);
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct bstArray*)(BST_ADDR);
 	dieBlock = (struct dieArray*)(DIE_MAP_ADDR);
 	gcMap = (struct gcArray*)(GC_MAP_ADDR);
 
@@ -530,10 +573,10 @@ u32 GarbageCollection(u32 dieNo)
 			u32 victimBlock = gcMap->gcEntry[dieNo][i].head;	// GC victim block
 
 			// link setting
-			if(blockMap->bmEntry[dieNo][victimBlock].nextBlock != 0xffffffff)
+			if(blockStatusTable->bstEntry[dieNo][victimBlock].nextBlock != 0xffffffff)
 			{
-				gcMap->gcEntry[dieNo][i].head = blockMap->bmEntry[dieNo][victimBlock].nextBlock;
-				blockMap->bmEntry[dieNo][blockMap->bmEntry[dieNo][victimBlock].nextBlock].prevBlock = 0xffffffff;
+				gcMap->gcEntry[dieNo][i].head = blockStatusTable->bstEntry[dieNo][victimBlock].nextBlock;
+				blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][victimBlock].nextBlock].prevBlock = 0xffffffff;
 			}
 			else
 			{
@@ -552,26 +595,26 @@ u32 GarbageCollection(u32 dieNo)
 						// page copy process
 						u32 validPage = victimBlock*PAGE_NUM_PER_BLOCK + j;
 						u32 freeBlock = dieBlock->dieEntry[dieNo].freeBlock;
-						u32 freePage = freeBlock*PAGE_NUM_PER_BLOCK + blockMap->bmEntry[dieNo][freeBlock].currentPage;
+						u32 freePage = freeBlock*PAGE_NUM_PER_BLOCK + blockStatusTable->bstEntry[dieNo][freeBlock].currentPage;
 
 						WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 						SsdRead(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, validPage, GC_BUFFER_ADDR);
 						WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 						SsdProgram(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, freePage, GC_BUFFER_ADDR);
 
-						// pageMap, blockMap update
+						// pageMap, blockStatusTable update
 						u32 lpn = pageMap->pmEntry[dieNo][validPage].lpn;
 
 						pageMap->pmEntry[dieNo][lpn].ppn = freePage;
 						pageMap->pmEntry[dieNo][freePage].lpn = lpn;
-						blockMap->bmEntry[dieNo][freeBlock].currentPage++;
+						blockStatusTable->bstEntry[dieNo][freeBlock].currentPage++;
 					}
 				}
 			}
 
 			// erased victim block becomes the free block for GC migration
 			EraseBlock(dieNo, victimBlock);
-			blockMap->bmEntry[dieNo][victimBlock].free = 0;
+			blockStatusTable->bstEntry[dieNo][victimBlock].s = INACTIVE;
 
 			u32 currentBlock = dieBlock->dieEntry[dieNo].freeBlock;
 			dieBlock->dieEntry[dieNo].freeBlock = victimBlock;
@@ -613,7 +656,7 @@ void FlushPageBuf(u32 lpn, u32 bufAddr)
 void UpdateMetaForOverwrite(u32 lpn)
 {
 	pageMap = (struct pmArray*)(PAGE_MAP_ADDR);
-	blockMap = (struct bmArray*)(BLOCK_MAP_ADDR);
+	blockStatusTable = (struct bstArray*)(BST_ADDR);
 	gcMap = (struct gcArray*)(GC_MAP_ADDR);
 
 	u32 dieNo = lpn % DIE_NUM;
@@ -625,47 +668,47 @@ void UpdateMetaForOverwrite(u32 lpn)
 		u32 diePbn = pageMap->pmEntry[dieNo][dieLpn].ppn / PAGE_NUM_PER_BLOCK;
 
 		// unlink
-		if((blockMap->bmEntry[dieNo][diePbn].nextBlock != 0xffffffff) && (blockMap->bmEntry[dieNo][diePbn].prevBlock != 0xffffffff))
+		if((blockStatusTable->bstEntry[dieNo][diePbn].nextBlock != 0xffffffff) && (blockStatusTable->bstEntry[dieNo][diePbn].prevBlock != 0xffffffff))
 		{
-			blockMap->bmEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].prevBlock].nextBlock = blockMap->bmEntry[dieNo][diePbn].nextBlock;
-			blockMap->bmEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].nextBlock].prevBlock = blockMap->bmEntry[dieNo][diePbn].prevBlock;
+			blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].prevBlock].nextBlock = blockStatusTable->bstEntry[dieNo][diePbn].nextBlock;
+			blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].nextBlock].prevBlock = blockStatusTable->bstEntry[dieNo][diePbn].prevBlock;
 		}
-		else if((blockMap->bmEntry[dieNo][diePbn].nextBlock == 0xffffffff) && (blockMap->bmEntry[dieNo][diePbn].prevBlock != 0xffffffff))
+		else if((blockStatusTable->bstEntry[dieNo][diePbn].nextBlock == 0xffffffff) && (blockStatusTable->bstEntry[dieNo][diePbn].prevBlock != 0xffffffff))
 		{
-			blockMap->bmEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].prevBlock].nextBlock = 0xffffffff;
-			gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail = blockMap->bmEntry[dieNo][diePbn].prevBlock;
+			blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].prevBlock].nextBlock = 0xffffffff;
+			gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail = blockStatusTable->bstEntry[dieNo][diePbn].prevBlock;
 		}
-		else if((blockMap->bmEntry[dieNo][diePbn].nextBlock != 0xffffffff) && (blockMap->bmEntry[dieNo][diePbn].prevBlock == 0xffffffff))
+		else if((blockStatusTable->bstEntry[dieNo][diePbn].nextBlock != 0xffffffff) && (blockStatusTable->bstEntry[dieNo][diePbn].prevBlock == 0xffffffff))
 		{
-			blockMap->bmEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].nextBlock].prevBlock = 0xffffffff;
-			gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].head = blockMap->bmEntry[dieNo][diePbn].nextBlock;
+			blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].nextBlock].prevBlock = 0xffffffff;
+			gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].head = blockStatusTable->bstEntry[dieNo][diePbn].nextBlock;
 		}
 		else
 		{
-			gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].head = 0xffffffff;
-			gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail = 0xffffffff;
+			gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].head = 0xffffffff;
+			gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail = 0xffffffff;
 		}
 
-//			xil_printf("[unlink] dieNo = %d, invalidPageCnt= %d, diePbn= %d, blockMap.prevBlock= %d, blockMap.nextBlock= %d, gcMap.head= %d, gcMap.tail= %d\r\n", dieNo, blockMap->bmEntry[dieNo][diePbn].invalidPageCnt, diePbn, blockMap->bmEntry[dieNo][diePbn].prevBlock, blockMap->bmEntry[dieNo][diePbn].nextBlock, gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].head, gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail);
+//			xil_printf("[unlink] dieNo = %d, invalidPageCnt= %d, diePbn= %d, blockStatusTable.prevBlock= %d, blockStatusTable.nextBlock= %d, gcMap.head= %d, gcMap.tail= %d\r\n", dieNo, blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt, diePbn, blockStatusTable->bstEntry[dieNo][diePbn].prevBlock, blockStatusTable->bstEntry[dieNo][diePbn].nextBlock, gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].head, gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail);
 
 		// invalidation update
 		pageMap->pmEntry[dieNo][pageMap->pmEntry[dieNo][dieLpn].ppn].valid = 0;
-		blockMap->bmEntry[dieNo][diePbn].invalidPageCnt++;
+		blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt++;
 
 		// insertion
-		if(gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail != 0xffffffff)
+		if(gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail != 0xffffffff)
 		{
-			blockMap->bmEntry[dieNo][diePbn].prevBlock = gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail;
-			blockMap->bmEntry[dieNo][diePbn].nextBlock = 0xffffffff;
-			blockMap->bmEntry[dieNo][gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail].nextBlock = diePbn;
-			gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail = diePbn;
+			blockStatusTable->bstEntry[dieNo][diePbn].prevBlock = gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail;
+			blockStatusTable->bstEntry[dieNo][diePbn].nextBlock = 0xffffffff;
+			blockStatusTable->bstEntry[dieNo][gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail].nextBlock = diePbn;
+			gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail = diePbn;
 		}
 		else
 		{
-			blockMap->bmEntry[dieNo][diePbn].prevBlock = 0xffffffff;
-			blockMap->bmEntry[dieNo][diePbn].nextBlock = 0xffffffff;
-			gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].head = diePbn;
-			gcMap->gcEntry[dieNo][blockMap->bmEntry[dieNo][diePbn].invalidPageCnt].tail = diePbn;
+			blockStatusTable->bstEntry[dieNo][diePbn].prevBlock = 0xffffffff;
+			blockStatusTable->bstEntry[dieNo][diePbn].nextBlock = 0xffffffff;
+			gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].head = diePbn;
+			gcMap->gcEntry[dieNo][blockStatusTable->bstEntry[dieNo][diePbn].invalidPageCnt].tail = diePbn;
 		}
 	}
 }
