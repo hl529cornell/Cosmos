@@ -130,6 +130,14 @@ void ReqHandler(void)
 	InitNandReset();
 	InitFtlMapTable();
 
+	// Initialize Transaction Queue
+	int i;
+	for (i = 0; i < 128; i++) {
+		tQueue[i] = NULL;
+	}
+
+	head = 0; tail = 0;
+
 	printf("[ Initialization is completed. ]\r\n");
 
 	storageSize = SSD_SIZE - FREE_BLOCK_SIZE - BAD_BLOCK_SIZE - METADATA_BLOCK_SIZE;
@@ -164,6 +172,10 @@ void ReqHandler(void)
 
 			hostCmd.CmdStatus = COMMAND_STATUS_SUCCESS;
 			hostCmd.ErrorStatus = IDE_ERROR_NOTHING;
+
+			// Put host command in transaction queue
+			tQueue[tail] = &hostCmd;
+			tail = (tail + 1) % 128;
 
 			if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
 			{

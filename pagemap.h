@@ -78,6 +78,8 @@ struct pmArray {
 	struct pmEntry pmEntry[DIE_NUM][PAGE_NUM_PER_DIE];
 };
 
+int max_num_erases;
+
 /*
  * Block Status Table Entry
  *

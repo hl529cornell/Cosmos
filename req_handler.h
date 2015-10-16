@@ -48,6 +48,12 @@
 #ifndef REQ_HANDLER_H_
 #define REQ_HANDLER_H_
 
+#include "host_controller.h"
+
+// Transaction Queue
+P_HOST_CMD tQueue[128];
+int head, tail;
+
 void ReqHandler(void);
 
 #endif /* REQ_HANDLER_H_ */
