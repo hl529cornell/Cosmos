@@ -50,9 +50,20 @@
 
 #include "host_controller.h"
 
+// Reward defines
+#define RD_RWD               -4.45
+#define WR_RWD               -0.89
+#define RELOC_RD_RWD         -4.9
+#define RELOC_WR_RWD          2.57
+#define ERASE_RWD             3.71
+#define WAIT_BEFORE_ERASE_RWD 1.09
+
 // Transaction Queue
 P_HOST_CMD tQueue[128];
 int head, tail;
+
+// CMACs
+int CMAC_1[10][10][10][10][10];
 
 void ReqHandler(void);
 

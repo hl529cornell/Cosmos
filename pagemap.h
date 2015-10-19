@@ -63,8 +63,8 @@
 #include "host_controller.h"
 #include "ftl.h"
 
-typedef enum {FREE, INACTIVE, ACTIVE} state;
-#define STATE_NUM 3
+typedef enum {INACTIVE, FREE, ACTIVE, BAD} state;
+#define STATE_NUM 4
 #define BIN_NUM 3
 
 struct pmEntry {
@@ -78,7 +78,7 @@ struct pmArray {
 	struct pmEntry pmEntry[DIE_NUM][PAGE_NUM_PER_DIE];
 };
 
-int max_num_erases;
+int max_erase_cnt;
 
 /*
  * Block Status Table Entry
@@ -88,10 +88,11 @@ int max_num_erases;
  */
 struct bstEntry{
 	u32 bad				: 1;
-	u32 free			: 1;  // Whether we can use this block to store data or not. Some blocks are
+	u32 usable			: 1;  // Whether we can use this block to store data or not. Some blocks are
 							  // reserved for other uses such as metadata storage.
 	state s;
 	u32 validPageCnt	: 16;
+	unsigned char curBin: 4;
 	u32 eraseCnt		: 30;
 	u32 invalidPageCnt : 16;
 	u32 currentPage    : 16;
@@ -104,21 +105,13 @@ struct bstArray {
 };
 
 struct bfsmEntry {
-	u32 bad				: 1;
-	state s;
-	u32 binNum			: 2;
-	u32 nextBlock;
-	u32 prevBlock;
-};
-
-struct bfsmArray {
 	u32 head;
 	u32 tail;
-	struct bfsmEntry bfsmEntry[BLOCK_NUM_PER_SSD];
 };
 
 struct bfsmTable {
-	struct bfsmArray bfsmArray[STATE_NUM][BIN_NUM];
+	// State is in order of INACTIVE, ACTIVE, FREE, BAD
+	struct bfsmEntry bfsmEntry[DIE_NUM][STATE_NUM][BIN_NUM];
 };
 
 struct dieEntry {
@@ -148,8 +141,8 @@ struct gcArray* gcMap;
 // memory addresses for map tables
 #define PAGE_MAP_ADDR	(RAM_DISK_BASE_ADDR + (0x1 << 27))
 #define BST_ADDR		SRAM0_BASE_ADDR
-#define BFSM_ADDR		(PAGE_MAP_ADDR + sizeof(struct bstEntry) * BLOCK_NUM_PER_SSD)
-#define DIE_MAP_ADDR	(BFSM_ADDR + (sizeof(struct bfsmEntry) * BLOCK_NUM_PER_SSD + 2*sizeof(u32)) * STATE_NUM * BIN_NUM)
+#define BFSM_ADDR		(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)
+#define DIE_MAP_ADDR	(BFSM_ADDR + sizeof(struct bfsmEntry) * DIE_NUM * STATE_NUM * BIN_NUM)
 #define GC_MAP_ADDR		(DIE_MAP_ADDR + sizeof(struct dieEntry) * DIE_NUM)
 
 // memory address of buffer for GC migration
@@ -182,6 +175,7 @@ int CountBits(u8 i);
 
 void FlushPageBuf(u32 lpn, u32 bufAddr);
 void UpdateMetaForOverwrite(u32 lpn);
+void MoveBSTEntry(u32 dieNo, u32 blockNo, state curState, unsigned char curBin, state nextState, unsigned char nextBin);
 //void MvData(u32* src, u32* dst, u32 sectSize);
 
 #endif /* PAGEMAP_H_ */
