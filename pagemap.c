@@ -131,25 +131,25 @@ void InitBlockMap()
 		for(j=0 ; j<DIE_NUM ; j++)
 		{
 			// initialize block state table
-			// All bstEntry are initially in INACTIVE bin 1
-			blockStatusTable->bstEntry[j][i].s = INACTIVE;
+			// All bstEntry are initially in FREE bin 1
+			blockStatusTable->bstEntry[j][i].s = FREE;
 			blockStatusTable->bstEntry[j][i].curBin = 0;
 			blockStatusTable->bstEntry[j][i].validPageCnt = PAGE_NUM_PER_BLOCK;
 			blockStatusTable->bstEntry[j][i].invalidPageCnt = 0;
 			blockStatusTable->bstEntry[j][i].eraseCnt = 0;
 			blockStatusTable->bstEntry[j][i].currentPage = 0x0;
 
-			// Put all block except for the very first block in INACTIVE Bin 1
+			// Put all block except for the very first block in FREE Bin 1
 			// Very first block is ignored because it is only used to store metadata.
 			// Note that the prevBlock, nextBlock of bstEntry and head, tail of bfsmEntry are
 			// simply indices to the block number of the blockStatusTable.
 			if (i == 1) {
-				blockFSMTable->bfsmEntry[j][INACTIVE][0].head = i;
+				blockFSMTable->bfsmEntry[j][FREE][0].head = i;
 				blockStatusTable->bstEntry[j][i].nextBlock = i + 1;
 				blockStatusTable->bstEntry[j][i].prevBlock = 0xffffffff;
 			}
 			else if (i == BLOCK_NUM_PER_DIE - 1) {
-				blockFSMTable->bfsmEntry[j][INACTIVE][0].tail = i;
+				blockFSMTable->bfsmEntry[j][FREE][0].tail = i;
 				blockStatusTable->bstEntry[j][i].prevBlock = i - 1;
 				blockStatusTable->bstEntry[j][i].nextBlock = 0xffffffff;
 			}
@@ -237,14 +237,14 @@ void CheckBadBlock()
 					blockStatusTable->bstEntry[dieNo][blockNo].bad = 1;
 					blockStatusTable->bstEntry[dieNo][blockNo].s = BAD;
 
-					// Remove bad block from INACTIVE Bin 1. We know that the block is already in the INACTIVE Bin 1
+					// Remove bad block from FREE Bin 1. We know that the block is already in the FREE Bin 1
 					// since that is where we initialize all blocks to go to.
 					//
 					// There are four possible conditions:
-					// 1. bstEntry is in middle of INACTIVE Bin 1 linked list
-					// 2. bstEntry is in end of INACTIVE Bin 1 linked list
-					// 3. bstEntry is in beginning of INACTIVE Bin 1 linked list
-					// 4. bstEntry is the only member of INACTIVE Bin 1 linked list
+					// 1. bstEntry is in middle of FREE Bin 1 linked list
+					// 2. bstEntry is in end of FREE Bin 1 linked list
+					// 3. bstEntry is in beginning of FREE Bin 1 linked list
+					// 4. bstEntry is the only member of FREE Bin 1 linked list
 					if((blockStatusTable->bstEntry[dieNo][blockNo].nextBlock != 0xffffffff)
 							&& (blockStatusTable->bstEntry[dieNo][blockNo].prevBlock != 0xffffffff))
 					{
@@ -259,20 +259,20 @@ void CheckBadBlock()
 					{
 						xil_printf("bstEntry in end of DLL\n");
 						blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][blockNo].prevBlock].nextBlock = 0xffffffff;
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].tail = blockStatusTable->bstEntry[dieNo][blockNo].prevBlock;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].tail = blockStatusTable->bstEntry[dieNo][blockNo].prevBlock;
 					}
 					else if((blockStatusTable->bstEntry[dieNo][blockNo].nextBlock != 0xffffffff)
 							&& (blockStatusTable->bstEntry[dieNo][blockNo].prevBlock == 0xffffffff))
 					{
 						xil_printf("bstEntry in start of DLL\n");
 						blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][blockNo].nextBlock].prevBlock = 0xffffffff;
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].head = blockStatusTable->bstEntry[dieNo][blockNo].nextBlock;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].head = blockStatusTable->bstEntry[dieNo][blockNo].nextBlock;
 					}
 					else
 					{
 						xil_printf("THIS SHOULD NOT HAPPEN\n");
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].head = 0xffffffff;
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].tail = 0xffffffff;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].head = 0xffffffff;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].tail = 0xffffffff;
 					}
 
 
@@ -330,14 +330,14 @@ void CheckBadBlock()
 					// set block status as BAD.
 					blockStatusTable->bstEntry[dieNo][blockNo].s = BAD;
 
-					// Remove bad block from INACTIVE Bin 1. We know that the block is already in the INACTIVE Bin 1
+					// Remove bad block from FREE Bin 1. We know that the block is already in the FREE Bin 1
 					// since that is where we initialize all blocks to go to.
 					//
 					// There are four possible conditions:
-					// 1. bstEntry is in middle of INACTIVE Bin 1 linked list
-					// 2. bstEntry is in end of INACTIVE Bin 1 linked list
-					// 3. bstEntry is in beginning of INACTIVE Bin 1 linked list
-					// 4. bstEntry is the only member of INACTIVE Bin 1 linked list
+					// 1. bstEntry is in middle of FREE Bin 1 linked list
+					// 2. bstEntry is in end of FREE Bin 1 linked list
+					// 3. bstEntry is in beginning of FREE Bin 1 linked list
+					// 4. bstEntry is the only member of FREE Bin 1 linked list
 					if((blockStatusTable->bstEntry[dieNo][blockNo].nextBlock != 0xffffffff)
 							&& (blockStatusTable->bstEntry[dieNo][blockNo].prevBlock != 0xffffffff))
 					{
@@ -352,20 +352,20 @@ void CheckBadBlock()
 					{
 						xil_printf("bstEntry in end of DLL\n");
 						blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][blockNo].prevBlock].nextBlock = 0xffffffff;
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].tail = blockStatusTable->bstEntry[dieNo][blockNo].prevBlock;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].tail = blockStatusTable->bstEntry[dieNo][blockNo].prevBlock;
 					}
 					else if((blockStatusTable->bstEntry[dieNo][blockNo].nextBlock != 0xffffffff)
 							&& (blockStatusTable->bstEntry[dieNo][blockNo].prevBlock == 0xffffffff))
 					{
 						xil_printf("bstEntry in start of DLL\n");
 						blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][blockNo].nextBlock].prevBlock = 0xffffffff;
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].head = blockStatusTable->bstEntry[dieNo][blockNo].nextBlock;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].head = blockStatusTable->bstEntry[dieNo][blockNo].nextBlock;
 					}
 					else
 					{
 						xil_printf("THIS SHOULD NOT HAPPEN\n");
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].head = 0xffffffff;
-						blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].tail = 0xffffffff;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].head = 0xffffffff;
+						blockFSMTable->bfsmEntry[dieNo][FREE][0].tail = 0xffffffff;
 					}
 
 
@@ -677,14 +677,27 @@ void EraseBlock(u32 dieNo, u32 blockNo)
 	pageMap = (struct pmArray*)(PAGE_MAP_ADDR);
 	blockStatusTable = (struct bstArray*)(BST_ADDR);
 
-	// block map indicated blockNo initialization
+	// block status table indicated blockNo initialization
 	blockStatusTable->bstEntry[dieNo][blockNo].usable = 1;
 	blockStatusTable->bstEntry[dieNo][blockNo].eraseCnt++;
 	blockStatusTable->bstEntry[dieNo][blockNo].invalidPageCnt = 0;
 	blockStatusTable->bstEntry[dieNo][blockNo].validPageCnt = PAGE_NUM_PER_BLOCK;
 	blockStatusTable->bstEntry[dieNo][blockNo].currentPage = 0x0;
-	blockStatusTable->bstEntry[dieNo][blockNo].prevBlock = 0xffffffff;
-	blockStatusTable->bstEntry[dieNo][blockNo].nextBlock = 0xffffffff;
+
+	// Move the bstEntry from its list to the FREE list
+	state cur_state = blockStatusTable->bstEntry[dieNo][blockNo].s;
+	unsigned char cur_bin = blockStatusTable->bstEntry[dieNo][blockNo].curBin;
+	u32 num_erases = blockStatusTable->bstEntry[dieNo][blockNo].eraseCnt;
+	unsigned char next_bin;
+
+	if (num_erases < (max_erase_cnt >> 2))
+		next_bin = 0;
+	else if (num_erases < (max_erase_cnt >> 1))
+		next_bin = 1;
+	else
+		next_bin = 2;
+
+	MoveBSTEntry(dieNo, blockNo, cur_state, cur_bin, FREE, next_bin);
 
 	int i;
 	for(i=0 ; i<PAGE_NUM_PER_BLOCK ; i++)
@@ -698,76 +711,91 @@ void EraseBlock(u32 dieNo, u32 blockNo)
 }
 
 // TODO: Change this code to work with BST and BFSMT
+
+/* Garbage collecting a given die involves the following steps:
+ * 1. Identify an INACTIVE or ACTIVE block from the BFSMT - this is the victim block
+ * 2. Identify a FREE block
+ * 3. Move valid pages from the victim block to the FREE block
+ * 4. Erase the victim block - this marks it as FREE and moves it to the FREE list.
+ */
 u32 GarbageCollection(u32 dieNo)
 {
 	xil_printf("GC occurs!\r\n");
 
 	pageMap = (struct pmArray*)(PAGE_MAP_ADDR);
 	blockStatusTable = (struct bstArray*)(BST_ADDR);
+	blockFSMTable = (struct bfsmTable*)(BFSM_ADDR);
 	dieBlock = (struct dieArray*)(DIE_MAP_ADDR);
 	gcMap = (struct gcArray*)(GC_MAP_ADDR);
 
-	int i;
-	for(i=PAGE_NUM_PER_BLOCK ; i>0 ; i--)
-	{
-		if(gcMap->gcEntry[dieNo][i].head != 0xffffffff)
+	u32 victimBlock;
+	u32 freeBlock;
+	int j;
+
+	// 1. Identify victim block
+	if (blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].head != 0xffffffff)
+		victimBlock = blockFSMTable->bfsmEntry[dieNo][INACTIVE][0].head;
+	else if (blockFSMTable->bfsmEntry[dieNo][INACTIVE][1].head != 0xffffffff)
+		victimBlock = blockFSMTable->bfsmEntry[dieNo][INACTIVE][1].head;
+	else if (blockFSMTable->bfsmEntry[dieNo][INACTIVE][2].head != 0xffffffff)
+		victimBlock = blockFSMTable->bfsmEntry[dieNo][INACTIVE][2].head;
+	else if (blockFSMTable->bfsmEntry[dieNo][ACTIVE][0].head != 0xffffffff)
+		victimBlock = blockFSMTable->bfsmEntry[dieNo][ACTIVE][0].head;
+	else if (blockFSMTable->bfsmEntry[dieNo][ACTIVE][1].head != 0xffffffff)
+		victimBlock = blockFSMTable->bfsmEntry[dieNo][ACTIVE][1].head;
+	else if (blockFSMTable->bfsmEntry[dieNo][ACTIVE][2].head != 0xffffffff)
+		victimBlock = blockFSMTable->bfsmEntry[dieNo][ACTIVE][2].head;
+	else
+		// No block to garbage collect
+		assert(!"[WARNING] There are no free blocks. Abort terminate this ssd. [WARNING]");
+
+	// 2. Identify FREE block
+	if (blockFSMTable->bfsmEntry[dieNo][FREE][0].head != 0xffffffff)
+		freeBlock = blockFSMTable->bfsmEntry[dieNo][FREE][0].head;
+	else if (blockFSMTable->bfsmEntry[dieNo][FREE][1].head != 0xffffffff)
+		freeBlock = blockFSMTable->bfsmEntry[dieNo][FREE][1].head;
+	else if (blockFSMTable->bfsmEntry[dieNo][FREE][2].head != 0xffffffff)
+		freeBlock = blockFSMTable->bfsmEntry[dieNo][FREE][2].head;
+	else
+		// No more free blocks
+		assert(!"[WARNING] There are no free blocks. Abort terminate this ssd. [WARNING]");
+
+	// 3. Copy valid pages from victim block to the free block, if victim was an ACTIVE block
+	struct bstEntry victimBlkEntry = blockStatusTable->bstEntry[dieNo][victimBlock];
+
+	if (victimBlkEntry.s == ACTIVE) {
+		for(j=0 ; j<PAGE_NUM_PER_BLOCK ; j++)
 		{
-			u32 victimBlock = gcMap->gcEntry[dieNo][i].head;	// GC victim block
-
-			// link setting
-			if(blockStatusTable->bstEntry[dieNo][victimBlock].nextBlock != 0xffffffff)
+			if(pageMap->pmEntry[dieNo][(victimBlock * PAGE_NUM_PER_BLOCK) + j].valid)
 			{
-				gcMap->gcEntry[dieNo][i].head = blockStatusTable->bstEntry[dieNo][victimBlock].nextBlock;
-				blockStatusTable->bstEntry[dieNo][blockStatusTable->bstEntry[dieNo][victimBlock].nextBlock].prevBlock = 0xffffffff;
+				// page copy process
+				u32 validPage = victimBlock*PAGE_NUM_PER_BLOCK + j;
+				// u32 freeBlock = dieBlock->dieEntry[dieNo].freeBlock;
+				u32 freePage = freeBlock*PAGE_NUM_PER_BLOCK + blockStatusTable->bstEntry[dieNo][freeBlock].currentPage;
+
+				WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
+				SsdRead(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, validPage, GC_BUFFER_ADDR);
+				WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
+				SsdProgram(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, freePage, GC_BUFFER_ADDR);
+
+				// pageMap, blockStatusTable update
+				u32 lpn = pageMap->pmEntry[dieNo][validPage].lpn;
+
+				pageMap->pmEntry[dieNo][lpn].ppn = freePage;
+				pageMap->pmEntry[dieNo][freePage].lpn = lpn;
+				blockStatusTable->bstEntry[dieNo][freeBlock].currentPage++;
 			}
-			else
-			{
-				gcMap->gcEntry[dieNo][i].head = 0xffffffff;
-				gcMap->gcEntry[dieNo][i].tail = 0xffffffff;
-			}
-
-			// copy valid pages from the victim block to the free block
-			if(i != PAGE_NUM_PER_BLOCK)
-			{
-				int j;
-				for(j=0 ; j<PAGE_NUM_PER_BLOCK ; j++)
-				{
-					if(pageMap->pmEntry[dieNo][(victimBlock * PAGE_NUM_PER_BLOCK) + j].valid)
-					{
-						// page copy process
-						u32 validPage = victimBlock*PAGE_NUM_PER_BLOCK + j;
-						u32 freeBlock = dieBlock->dieEntry[dieNo].freeBlock;
-						u32 freePage = freeBlock*PAGE_NUM_PER_BLOCK + blockStatusTable->bstEntry[dieNo][freeBlock].currentPage;
-
-						WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
-						SsdRead(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, validPage, GC_BUFFER_ADDR);
-						WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
-						SsdProgram(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, freePage, GC_BUFFER_ADDR);
-
-						// pageMap, blockStatusTable update
-						u32 lpn = pageMap->pmEntry[dieNo][validPage].lpn;
-
-						pageMap->pmEntry[dieNo][lpn].ppn = freePage;
-						pageMap->pmEntry[dieNo][freePage].lpn = lpn;
-						blockStatusTable->bstEntry[dieNo][freeBlock].currentPage++;
-					}
-				}
-			}
-
-			// erased victim block becomes the free block for GC migration
-			EraseBlock(dieNo, victimBlock);
-			blockStatusTable->bstEntry[dieNo][victimBlock].s = INACTIVE;
-
-			u32 currentBlock = dieBlock->dieEntry[dieNo].freeBlock;
-			dieBlock->dieEntry[dieNo].freeBlock = victimBlock;
-
-			return currentBlock;	// atomic GC completion
 		}
 	}
 
-	// no free space anymore
-	assert(!"[WARNING] There are no free blocks. Abort terminate this ssd. [WARNING]");
-	return 1;
+	// Move free block to the ACTIVE_FREE list
+	struct bstEntry free_blk_entry = blockStatusTable->bstEntry[dieNo][freeBlock];
+	MoveBSTEntry(dieNo, freeBlock, free_blk_entry.s, free_blk_entry.curBin, ACTIVE_FREE, free_blk_entry.curBin);
+
+	// Erase the victim block
+	EraseBlock(dieNo, victimBlock);
+
+	return victimBlock;
 }
 
 void FlushPageBuf(u32 lpn, u32 bufAddr)
@@ -803,10 +831,10 @@ void FlushPageBuf(u32 lpn, u32 bufAddr)
  * Table. Note that there are a complex set of cases for which we have to move the
  * bstEntry between the different state-bin pairs of the BFSMT. Each case is listed below:
  *
- * 1. Block is in INACTIVE state:
- *    - Here, regardless of the bin number we move the block into the FREE state,
+ * 1. Block is in FREE state:
+ *    - Here, regardless of the bin number we move the block into the ACTIVE FREE state,
  *    checking which bin to go into according to its erase count.
- * 2. Block is in FREE state:
+ * 2. Block is in ACTIVE FREE state:
  *    - Here, we check whether the block should be moved into the ACTIVE state,
  *    based on whether the block is full or not.
  * 3. Block is in ACTIVE state:
@@ -841,10 +869,10 @@ void UpdateMetaForOverwrite(u32 lpn)
 
 	u32 nValidPages = blockStatusTable->bstEntry[dieNo][diePbn].validPageCnt;
 
-	if (block_s == INACTIVE) {
-		MoveBSTEntry( dieNo, diePbn, block_s, curBin, FREE, curBin);
+	if (block_s == FREE) {
+		MoveBSTEntry( dieNo, diePbn, block_s, curBin, ACTIVE_FREE, curBin);
 	}
-	else if ( block_s == FREE && curPage == PAGE_NUM_PER_BLOCK - 1 ) {
+	else if ( block_s == ACTIVE_FREE && curPage == PAGE_NUM_PER_BLOCK - 1 ) {
 		if (nValidPages < ( PAGE_NUM_PER_BLOCK >> 2 ))
 			MoveBSTEntry( dieNo, diePbn, block_s, curBin, ACTIVE, 0);
 		else if ( nValidPages < ( PAGE_NUM_PER_BLOCK >> 1 ) )
@@ -853,7 +881,7 @@ void UpdateMetaForOverwrite(u32 lpn)
 			MoveBSTEntry( dieNo, diePbn, block_s, curBin, ACTIVE, 2);
 	}
 	else {
-		xil_printf("ERROR! No block other than INACTIVE or FREE should be written to.\r\n");
+		xil_printf("ERROR! No block other than FREE or ACTIVE FREE should be written to.\r\n");
 	}
 
 }
