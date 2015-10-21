@@ -62,6 +62,9 @@
 P_HOST_CMD tQueue[128];
 int head, tail;
 
+// Queue to hold transactions that are not ready
+queue_t holdingQueue;
+
 // CMACs
 int CMAC_1[10][10][10][10][10];
 

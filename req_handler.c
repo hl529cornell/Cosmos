@@ -135,6 +135,9 @@ void ReqHandler(void)
 	for (i = 0; i < 128; i++) {
 		tQueue[i] = NULL;
 	}
+	
+	// Initialize Holding Queue
+	holdingQueue = queue_new();
 
 	head = 0; tail = 0;
 
@@ -174,13 +177,44 @@ void ReqHandler(void)
 			hostCmd.ErrorStatus = IDE_ERROR_NOTHING;
 
 			// Put host command in transaction queue
+			// When we put in the full fledged code, the following two lines should be taken out. - SHIWANI
 			tQueue[tail] = &hostCmd;
 			tail = (tail + 1) % 128;
-
-			if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
+			u32 lpn = hostCmd.reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
+			
+			// if the tQueue is full, this automatically goes in the holding queue
+			if ((head == tail + 1) || (tail == head + 1)) {
+				queue_append(holdingQueue, hostCmd);
+			}
+			
+			else if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
 			{
 //				xil_printf("write(%d, %d)\r\n", hostCmd.reqInfo.CurSect, hostCmd.reqInfo.ReqSect);
 
+				// look through the transaction queue for any read or write dependencies
+
+//				int k = head;
+//				int flag = 0;
+//				while (k != tail) {
+//					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE && 
+//							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE)
+//							|| (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ))) {
+//						flag = 1;
+//						break;
+//					}
+//				}
+//					
+//				if (!flag) {
+//					// this command is safe to be added to the transaction queue.
+//					tQueue[tail] = &hostCmd;
+//					tail = (tail + 1) % 128;
+//				}
+//				
+//				else {
+//					// this command needs to be inserted into the holding queue
+//					queue_append(holdingQueue, hostCmd);
+//				}
+				
 				PrePmRead(&hostCmd, RAM_DISK_BASE_ADDR);
 
 				deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
@@ -198,6 +232,29 @@ void ReqHandler(void)
 			{
 //				xil_printf("read(%d, %d)\r\n", hostCmd.reqInfo.CurSect, hostCmd.reqInfo.ReqSect);
 
+				// look through the transaction queue for any write dependencies
+
+//				int k = head;
+//				int flag = 0;
+//				while (k != tail) {
+//					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE && 
+//							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE))) {
+//						flag = 1;
+//						break;
+//					}
+//				}
+//					
+//				if (!flag) {
+//					// this command is safe to be added to the transaction queue.
+//					tQueue[tail] = &hostCmd;
+//					tail = (tail + 1) % 128;
+//				}
+//				
+//				else {
+//					// this command needs to be inserted into the holding queue
+//					queue_append(holdingQueue, hostCmd);
+//				}
+				
 				PmRead(&hostCmd, RAM_DISK_BASE_ADDR);
 
 				deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
