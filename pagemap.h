@@ -63,7 +63,7 @@
 #include "host_controller.h"
 #include "ftl.h"
 
-typedef enum {INACTIVE, FREE, ACTIVE, BAD} state;
+typedef enum {INACTIVE, FREE, ACTIVE_FREE, ACTIVE, BAD} state;
 #define STATE_NUM 4
 #define BIN_NUM 3
 
