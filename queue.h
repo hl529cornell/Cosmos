@@ -9,7 +9,22 @@
  * Clients of this package do not need to know how queues are
  * represented.  They see and manipulate only queue_t's.
  */
-typedef struct queue queue_t;
+
+// Represents each node in the linked queue structure.
+typedef struct entity {
+    // The value of the entity.
+    void *value;
+    // The next entity in the queue (from front to back).
+    struct entity *next;
+} entity_t;
+
+// Implementation for a FIFO queue with 
+// O(1) prepend, append, and dequeue.
+typedef struct queue {
+    entity_t *front;
+    entity_t *back;
+    int length;
+} queue_t;
 
 /*
  * Return an empty queue.  Returns NULL on error.

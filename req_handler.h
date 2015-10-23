@@ -65,6 +65,9 @@ int head, tail;
 // Queue to hold transactions that are not ready
 queue_t holdingQueue;
 
+// O3: Queue to hold ready commands
+queue_t readyQueue;
+
 // CMACs
 int CMAC_1[10][10][10][10][10];
 
