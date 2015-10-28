@@ -110,7 +110,6 @@ void InitBlockMap()
 	xil_printf("Page Map ADDR: %x \r\n", d);
 	int k, l, m;
 
-	CheckBadBlock();
 
 	// Initialize block FSM table
 	// head and tail are NULL initially.
@@ -159,6 +158,8 @@ void InitBlockMap()
 			}
 		}
 	}
+
+	CheckBadBlock();
 
 	for (i = 0; i < BLOCK_NUM_PER_DIE; ++i)
 		for (j = 0; j < DIE_NUM; ++j)
@@ -217,8 +218,8 @@ void CheckBadBlock()
 
 	shifter= (u8*)(RAM_DISK_BASE_ADDR);
 	badBlockCount = 0;
-	if(*shifter == EMPTY_BYTE)	//check whether badblock marks exist
-	{
+	//if(*shifter == EMPTY_BYTE)	//check whether badblock marks exist
+	//{
 		// static bad block management
 		for(blockNo=0; blockNo < BLOCK_NUM_PER_DIE; blockNo++)
 			for(dieNo=0; dieNo < DIE_NUM; dieNo++)
@@ -270,7 +271,7 @@ void CheckBadBlock()
 					}
 					else
 					{
-						xil_printf("THIS SHOULD NOT HAPPEN\n");
+						xil_printf("THIS SHOULD NOT HAPPEN FREE 1\n");
 						blockFSMTable->bfsmEntry[dieNo][FREE][0].head = 0xffffffff;
 						blockFSMTable->bfsmEntry[dieNo][FREE][0].tail = 0xffffffff;
 					}
@@ -314,9 +315,9 @@ void CheckBadBlock()
 			loop -= PAGE_SIZE;
 		}
 		xil_printf("[ Bad block Marks are saved. ]\r\n");
-	}
+	//}
 
-	else	//read existing bad block marks
+	/*else	//read existing bad block marks
 	{
 		for(blockNo=0; blockNo<BLOCK_NUM_PER_DIE; blockNo++)
 			for(dieNo=0; dieNo<DIE_NUM; dieNo++)
@@ -363,7 +364,7 @@ void CheckBadBlock()
 					}
 					else
 					{
-						xil_printf("THIS SHOULD NOT HAPPEN\n");
+						xil_printf("THIS SHOULD NOT HAPPEN FREE 2\n");
 						blockFSMTable->bfsmEntry[dieNo][FREE][0].head = 0xffffffff;
 						blockFSMTable->bfsmEntry[dieNo][FREE][0].tail = 0xffffffff;
 					}
@@ -387,7 +388,7 @@ void CheckBadBlock()
 			}
 
 		xil_printf("[ Bad blocks are checked. ]\r\n");
-	}
+	}*/
 
 	// save bad block size
 	BAD_BLOCK_SIZE = badBlockCount * BLOCK_SIZE_MB;

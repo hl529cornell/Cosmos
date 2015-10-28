@@ -49,6 +49,7 @@
 #define REQ_HANDLER_H_
 
 #include "host_controller.h"
+#include "queue.h"
 
 // Reward defines
 #define RD_RWD               -4.45
@@ -63,10 +64,10 @@ P_HOST_CMD tQueue[128];
 int head, tail;
 
 // Queue to hold transactions that are not ready
-queue_t holdingQueue;
+queue_t *holdingQueue;
 
 // O3: Queue to hold ready commands
-queue_t readyQueue;
+queue_t *readyQueue;
 
 // CMACs
 int CMAC_1[10][10][10][10][10];

@@ -140,8 +140,8 @@ struct gcArray* gcMap;
 
 // memory addresses for map tables
 #define PAGE_MAP_ADDR	(RAM_DISK_BASE_ADDR + (0x1 << 27))
-#define BST_ADDR		SRAM0_BASE_ADDR
-#define BFSM_ADDR		(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)
+#define BST_ADDR		(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)//SRAM0_BASE_ADDR
+#define BFSM_ADDR		(BST_ADDR + sizeof(struct bstEntry) * DIE_NUM * BLOCK_NUM_PER_DIE)//(PAGE_MAP_ADDR + sizeof(struct pmEntry) * PAGE_NUM_PER_SSD)
 #define DIE_MAP_ADDR	(BFSM_ADDR + sizeof(struct bfsmEntry) * DIE_NUM * STATE_NUM * BIN_NUM)
 #define GC_MAP_ADDR		(DIE_MAP_ADDR + sizeof(struct dieEntry) * DIE_NUM)
 

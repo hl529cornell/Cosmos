@@ -108,110 +108,110 @@ XAxiCdma_Config XAxiCdma_ConfigTable[] =
 	}
 };
 
-int checkDependencies(P_HOST_CMD c)
-{
-	// if the transaction queue is full then add to the holdingQueue
-	if ((head == tail + 1) || (tail == head + 1)) {
-		//return 0;
-		queue_append(holdingQueue, c);
-	}
-	
-	int flag = 0;
-	else if((c.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (c.reqInfo.Cmd == IDE_COMMAND_WRITE))
-	{
-				xil_printf("write(%d, %d)\r\n", c.reqInfo.CurSect, c.reqInfo.ReqSect);
-
-		// look through the transaction queue for any read or write dependencies
-
-				int k = head;
-				while (k != tail) {
-					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE && 
-							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE)
-							|| (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ))) {
-						flag = 1;
-						break;
-					}
-					k = (k + 1) % 128;
-				}
-	}
-	else if((c.reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (c.reqInfo.Cmd == IDE_COMMAND_READ))
-	{
-				xil_printf("read(%d, %d)\r\n", c.reqInfo.CurSect, c.reqInfo.ReqSect);
-
-		 look through the transaction queue for any write dependencies
-
-				int k = head;
-				int flag = 0;
-				while (k != tail) {
-					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE && 
-							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE))) {
-						flag = 1;
-						break;
-					}
-					k = (k + 1) % 128;
-				}
-	}
-
-	if (!flag) {
-		// this command is safe to be added to the transaction queue.
-		tQueue[tail] = &c;
-		tail = (tail + 1) % 128;
-		// In the case of O3, we check to see if the ways are ready and then add to the readyQueue
-		// dieNo = lpn % DIE_NUM;
-		// if (SsdReadChWayStatus(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM) == 0) {
-		//		// return 1;
-		//		queue_append(readyQueue, (void *) &c);
-		//	}
-		//	else {
-		//		// return 0;
-		//		queue_append(holdingQueue, (void *) &c);
-		// 	}
-	}
-	
-	else {
-		// this command needs to be inserted into the holding queue
-		// return 0;
-		queue_append(holdingQueue, c);
-	}
-
-}
-
-void checkHoldingQueue(void) 
-{
-    // iterate through the holdingQueue and add any now ready transactions
-	// or any transactions that no longer hold dependencies
-	if ((head == tail + 1) || (tail == head + 1)) {
-		// the transaction Queue is full, just return now for efficiency.
-		return;
-	}
-	entity_t *curr = holdingQueue->head;
-	entity_t *prev = holdingQueue->head;
-	while (curr != NULL) {
-		if (checkDependencies(curr->value)) {
-			// add to the readyQueue
-			queue_append(readyQueue, curr->value);
-			if (curr == prev) {
-				// the head of the holdingQueue is being removed
-				entity_t *holder;
-				queue_dequeue(holdingQueue, &holder);
-				curr = holdingQueue->head;
-				prev = curr;
-				free(holder);
-			}
-			else {
-				entity_t *tmp = curr;
-				prev->next = curr->next;
-				// we still need to check curr's next but not change prev
-				curr = curr->next;
-				free(tmp);
-			}
-		}
-		else {
-			prev = curr;
-			curr = curr->next;
-		}
-	}
-}
+//int checkDependencies(P_HOST_CMD c)
+//{
+//	// if the transaction queue is full then add to the holdingQueue
+//	int flag = 0;
+//	if ((head == tail + 1) || (tail == head + 1)) {
+//		//return 0;
+//		queue_append(holdingQueue, c);
+//	}
+//
+//	else if((c.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (c.reqInfo.Cmd == IDE_COMMAND_WRITE))
+//	{
+//				xil_printf("write(%d, %d)\r\n", c.reqInfo.CurSect, c.reqInfo.ReqSect);
+//
+//		// look through the transaction queue for any read or write dependencies
+//
+//				int k = head;
+//				while (k != tail) {
+//					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE &&
+//							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE)
+//							|| (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ))) {
+//						flag = 1;
+//						break;
+//					}
+//					k = (k + 1) % 128;
+//				}
+//	}
+//	else if((c.reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (c.reqInfo.Cmd == IDE_COMMAND_READ))
+//	{
+//				xil_printf("read(%d, %d)\r\n", c.reqInfo.CurSect, c.reqInfo.ReqSect);
+//
+//		 look through the transaction queue for any write dependencies
+//
+//				int k = head;
+//				int flag = 0;
+//				while (k != tail) {
+//					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE &&
+//							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE))) {
+//						flag = 1;
+//						break;
+//					}
+//					k = (k + 1) % 128;
+//				}
+//	}
+//
+//	if (!flag) {
+//		// this command is safe to be added to the transaction queue.
+//		tQueue[tail] = &c;
+//		tail = (tail + 1) % 128;
+//		// In the case of O3, we check to see if the ways are ready and then add to the readyQueue
+//		// dieNo = lpn % DIE_NUM;
+//		// if (SsdReadChWayStatus(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM) == 0) {
+//		//		// return 1;
+//		//		queue_append(readyQueue, (void *) &c);
+//		//	}
+//		//	else {
+//		//		// return 0;
+//		//		queue_append(holdingQueue, (void *) &c);
+//		// 	}
+//	}
+//
+//	else {
+//		// this command needs to be inserted into the holding queue
+//		// return 0;
+//		queue_append(holdingQueue, c);
+//	}
+//
+//}
+//
+//void checkHoldingQueue(void)
+//{
+//    // iterate through the holdingQueue and add any now ready transactions
+//	// or any transactions that no longer hold dependencies
+//	if ((head == tail + 1) || (tail == head + 1)) {
+//		// the transaction Queue is full, just return now for efficiency.
+//		return;
+//	}
+//	entity_t *curr = holdingQueue->head;
+//	entity_t *prev = holdingQueue->head;
+//	while (curr != NULL) {
+//		if (checkDependencies(curr->value)) {
+//			// add to the readyQueue
+//			queue_append(readyQueue, curr->value);
+//			if (curr == prev) {
+//				// the head of the holdingQueue is being removed
+//				entity_t *holder;
+//				queue_dequeue(holdingQueue, &holder);
+//				curr = holdingQueue->head;
+//				prev = curr;
+//				free(holder);
+//			}
+//			else {
+//				entity_t *tmp = curr;
+//				prev->next = curr->next;
+//				// we still need to check curr's next but not change prev
+//				curr = curr->next;
+//				free(tmp);
+//			}
+//		}
+//		else {
+//			prev = curr;
+//			curr = curr->next;
+//		}
+//	}
+//}
 
 void ReqHandler(void)
 {
@@ -291,11 +291,11 @@ void ReqHandler(void)
 			u32 lpn = hostCmd.reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
 			
 			// if the tQueue is full, this automatically goes in the holding queue
-			if ((head == tail + 1) || (tail == head + 1)) {
-				queue_append(holdingQueue, hostCmd);
-			}
+//			if ((head == tail + 1) || (tail == head + 1)) {
+//				queue_append(holdingQueue, hostCmd);
+//			}
 			
-			else if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
+			if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
 			{
 //				xil_printf("write(%d, %d)\r\n", hostCmd.reqInfo.CurSect, hostCmd.reqInfo.ReqSect);
 
