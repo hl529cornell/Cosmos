@@ -891,6 +891,30 @@ void UpdateMetaForOverwrite(u32 lpn)
  */
 void MoveBSTEntry(u32 dieNo, u32 blockNo, state curState, unsigned char curBin, state nextState, unsigned char nextBin) {
 
+	char* cur_state_str;
+	char* next_state_str;
+
+	switch (curState)
+	{
+	case FREE: cur_state_str = "FREE";
+	case ACTIVE_FREE: cur_state_str = "ACTIVE_FREE";
+	case ACTIVE: cur_state_str = "ACTIVE";
+	case INACTIVE: cur_state_str = "INACTIVE";
+	case BAD: cur_state_str = "BAD";
+	default: cur_state_str = "UNKNOWN";
+	}
+
+	switch (nextState)
+	{
+	case FREE: next_state_str = "FREE";
+	case ACTIVE_FREE: next_state_str = "ACTIVE_FREE";
+	case ACTIVE: next_state_str = "ACTIVE";
+	case INACTIVE: next_state_str = "INACTIVE";
+	case BAD: next_state_str = "BAD";
+	default: next_state_str = "UNKNOWN";
+	}
+
+	xil_printf("Moving (%d, %d) from [%s, %c] to [%s, %c]\r\n", dieNo, blockNo, cur_state_str, curBin, next_state_str, nextBin);
 	// Move block entry from curState, curBin to nextState, nextBin.
 	//
 	// There are four possible conditions for removal from linked list:
