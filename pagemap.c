@@ -142,6 +142,12 @@ void InitBlockMap()
 			// Very first block is ignored because it is only used to store metadata.
 			// Note that the prevBlock, nextBlock of bstEntry and head, tail of bfsmEntry are
 			// simply indices to the block number of the blockStatusTable.
+			if (i == 0) {
+				xil_printf("Putting 1st block of die in BAD bin\r\n");
+				blockFSMTable->bfsmEntry[j][BAD][0].head = i;
+				blockStatusTable->bstEntry[j][i].nextBlock = 0xffffffff;
+				blockStatusTable->bstEntry[j][i].prevBlock = 0xffffffff;
+			}
 			if (i == 1) {
 				blockFSMTable->bfsmEntry[j][FREE][0].head = i;
 				blockStatusTable->bstEntry[j][i].nextBlock = i + 1;
@@ -155,6 +161,16 @@ void InitBlockMap()
 			else if (i != 0){
 				blockStatusTable->bstEntry[j][i].nextBlock = i + 1;
 				blockStatusTable->bstEntry[j][i].prevBlock = i - 1;
+			}
+		}
+	}
+
+	// DEBUGGING: print head and tail for each state/bin pair
+	for (k = 0; k < DIE_NUM; k++) {
+		for (l = 0; l < STATE_NUM; l++) {
+			for (m = 0; m < BIN_NUM; m++) {
+				xil_printf("Head of (Die %d, State %d, Bin %d) is %d\r\n", k, l, m, blockFSMTable->bfsmEntry[k][l][m].head);
+				xil_printf("Tail of (Die %d, State %d, Bin %d) is %d\r\n", k, l, m, blockFSMTable->bfsmEntry[k][l][m].tail);
 			}
 		}
 	}
@@ -897,22 +913,44 @@ void MoveBSTEntry(u32 dieNo, u32 blockNo, state curState, unsigned char curBin, 
 
 	switch (curState)
 	{
-	case FREE: cur_state_str = "FREE";
-	case ACTIVE_FREE: cur_state_str = "ACTIVE_FREE";
-	case ACTIVE: cur_state_str = "ACTIVE";
-	case INACTIVE: cur_state_str = "INACTIVE";
-	case BAD: cur_state_str = "BAD";
-	default: cur_state_str = "UNKNOWN";
+		case FREE:
+			cur_state_str = "FREE";
+			break;
+		case ACTIVE_FREE:
+			cur_state_str = "ACTIVE_FREE";
+			break;
+		case ACTIVE:
+			cur_state_str = "ACTIVE";
+			break;
+		case INACTIVE:
+			cur_state_str = "INACTIVE";
+			break;
+		case BAD:
+			cur_state_str = "BAD";
+			break;
+		default:
+			cur_state_str = "UNKNOWN";
 	}
 
 	switch (nextState)
 	{
-	case FREE: next_state_str = "FREE";
-	case ACTIVE_FREE: next_state_str = "ACTIVE_FREE";
-	case ACTIVE: next_state_str = "ACTIVE";
-	case INACTIVE: next_state_str = "INACTIVE";
-	case BAD: next_state_str = "BAD";
-	default: next_state_str = "UNKNOWN";
+		case FREE:
+			cur_state_str = "FREE";
+			break;
+		case ACTIVE_FREE:
+			cur_state_str = "ACTIVE_FREE";
+			break;
+		case ACTIVE:
+			cur_state_str = "ACTIVE";
+			break;
+		case INACTIVE:
+			cur_state_str = "INACTIVE";
+			break;
+		case BAD:
+			cur_state_str = "BAD";
+			break;
+		default:
+			cur_state_str = "UNKNOWN";
 	}
 
 	xil_printf("Moving (%d, %d) from [%s, %c] to [%s, %c]\r\n", dieNo, blockNo, cur_state_str, curBin, next_state_str, nextBin);
