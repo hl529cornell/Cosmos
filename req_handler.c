@@ -112,11 +112,12 @@ XAxiCdma_Config XAxiCdma_ConfigTable[] =
 //{
 //	// if the transaction queue is full then add to the holdingQueue
 //	int flag = 0;
-//	if ((head == tail + 1) || (tail == head + 1)) {
-//		//return 0;
-//		queue_append(holdingQueue, c);
+//	if (head == ((tail + 1) % 128)) {
+//		queue_append(holdingQueue, (void *) &c);
+//		return 0;
 //	}
 //
+//	u32 lpn = c.reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
 //	else if((c.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (c.reqInfo.Cmd == IDE_COMMAND_WRITE))
 //	{
 //				xil_printf("write(%d, %d)\r\n", c.reqInfo.CurSect, c.reqInfo.ReqSect);
@@ -187,7 +188,7 @@ XAxiCdma_Config XAxiCdma_ConfigTable[] =
 //	entity_t *curr = holdingQueue->head;
 //	entity_t *prev = holdingQueue->head;
 //	while (curr != NULL) {
-//		if (checkDependencies(curr->value)) {
+//		if (checkDependencies( (P_HOST_CMD) *curr->value)) {
 //			// add to the readyQueue
 //			queue_append(readyQueue, curr->value);
 //			if (curr == prev) {
