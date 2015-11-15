@@ -21,8 +21,8 @@ typedef struct entity {
 // Implementation for a FIFO queue with 
 // O(1) prepend, append, and dequeue.
 typedef struct queue {
-    entity_t *front;
-    entity_t *back;
+    entity_t *head;
+    entity_t *tail;
     int length;
 } queue_t;
 

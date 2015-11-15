@@ -62,6 +62,7 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "xparameters.h"
 #include "xil_io.h"
 #include "xil_cache.h"
@@ -78,6 +79,7 @@
 
 #include "ftl.h"
 #include "pageMap.h"
+#include "lld.h"
 
 extern XAxiPcie devPcie;
 
@@ -108,111 +110,110 @@ XAxiCdma_Config XAxiCdma_ConfigTable[] =
 	}
 };
 
-//int checkDependencies(P_HOST_CMD c)
-//{
-//	// if the transaction queue is full then add to the holdingQueue
-//	int flag = 0;
-//	if (head == ((tail + 1) % 128)) {
-//		queue_append(holdingQueue, (void *) &c);
-//		return 0;
-//	}
-//
-//	u32 lpn = c.reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
-//	else if((c.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (c.reqInfo.Cmd == IDE_COMMAND_WRITE))
-//	{
-//				xil_printf("write(%d, %d)\r\n", c.reqInfo.CurSect, c.reqInfo.ReqSect);
-//
-//		// look through the transaction queue for any read or write dependencies
-//
-//				int k = head;
-//				while (k != tail) {
-//					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE &&
-//							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE)
-//							|| (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_READ))) {
-//						flag = 1;
-//						break;
-//					}
-//					k = (k + 1) % 128;
-//				}
-//	}
-//	else if((c.reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (c.reqInfo.Cmd == IDE_COMMAND_READ))
-//	{
-//				xil_printf("read(%d, %d)\r\n", c.reqInfo.CurSect, c.reqInfo.ReqSect);
-//
-//		 look through the transaction queue for any write dependencies
-//
-//				int k = head;
-//				int flag = 0;
-//				while (k != tail) {
-//					if (lpn == tQueue[k].reqInfo.CurSect / SECTOR_NUM_PER_PAGE &&
-//							((tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k].reqInfo.Cmd == IDE_COMMAND_WRITE))) {
-//						flag = 1;
-//						break;
-//					}
-//					k = (k + 1) % 128;
-//				}
-//	}
-//
-//	if (!flag) {
-//		// this command is safe to be added to the transaction queue.
-//		tQueue[tail] = &c;
-//		tail = (tail + 1) % 128;
-//		// In the case of O3, we check to see if the ways are ready and then add to the readyQueue
-//		// dieNo = lpn % DIE_NUM;
-//		// if (SsdReadChWayStatus(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM) == 0) {
-//		//		// return 1;
-//		//		queue_append(readyQueue, (void *) &c);
-//		//	}
-//		//	else {
-//		//		// return 0;
-//		//		queue_append(holdingQueue, (void *) &c);
-//		// 	}
-//	}
-//
-//	else {
-//		// this command needs to be inserted into the holding queue
-//		// return 0;
-//		queue_append(holdingQueue, c);
-//	}
-//
-//}
-//
-//void checkHoldingQueue(void)
-//{
-//    // iterate through the holdingQueue and add any now ready transactions
-//	// or any transactions that no longer hold dependencies
-//	if ((head == tail + 1) || (tail == head + 1)) {
-//		// the transaction Queue is full, just return now for efficiency.
-//		return;
-//	}
-//	entity_t *curr = holdingQueue->head;
-//	entity_t *prev = holdingQueue->head;
-//	while (curr != NULL) {
-//		if (checkDependencies( (P_HOST_CMD) *curr->value)) {
-//			// add to the readyQueue
-//			queue_append(readyQueue, curr->value);
-//			if (curr == prev) {
-//				// the head of the holdingQueue is being removed
-//				entity_t *holder;
-//				queue_dequeue(holdingQueue, &holder);
-//				curr = holdingQueue->head;
-//				prev = curr;
-//				free(holder);
-//			}
-//			else {
-//				entity_t *tmp = curr;
-//				prev->next = curr->next;
-//				// we still need to check curr's next but not change prev
-//				curr = curr->next;
-//				free(tmp);
-//			}
-//		}
-//		else {
-//			prev = curr;
-//			curr = curr->next;
-//		}
-//	}
-//}
+int checkDependencies(P_HOST_CMD c)
+{
+	// if the transaction queue is full then add to the holdingQueue
+	int flag = 0;
+	u32 lpn = c->reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
+	if (head == ((tail + 1) % 128)) {
+		queue_append(holdingQueue, (void *) c);
+		return 0;
+	}
+
+	else if((c->reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (c->reqInfo.Cmd == IDE_COMMAND_WRITE)) {
+				xil_printf("write(%d, %d)\r\n", c->reqInfo.CurSect, c->reqInfo.ReqSect);
+
+		// look through the transaction queue for any read or write dependencies
+
+				int k = head;
+				while (k != tail) {
+					if (lpn == tQueue[k]->reqInfo.CurSect / SECTOR_NUM_PER_PAGE &&
+							((tQueue[k]->reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k]->reqInfo.Cmd == IDE_COMMAND_WRITE)
+							|| (tQueue[k]->reqInfo.Cmd == IDE_COMMAND_READ_DMA) ||  (tQueue[k]->reqInfo.Cmd == IDE_COMMAND_READ))) {
+						flag = 1;
+						break;
+					}
+					k = (k + 1) % 128;
+				}
+	}
+	else if((c->reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (c->reqInfo.Cmd == IDE_COMMAND_READ))
+	{
+				xil_printf("read(%d, %d)\r\n", c->reqInfo.CurSect, c->reqInfo.ReqSect);
+
+		 //look through the transaction queue for any write dependencies
+
+				int k = head;
+				while (k != tail) {
+					if (lpn == tQueue[k]->reqInfo.CurSect / SECTOR_NUM_PER_PAGE &&
+							((tQueue[k]->reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (tQueue[k]->reqInfo.Cmd == IDE_COMMAND_WRITE))) {
+						flag = 1;
+						break;
+					}
+					k = (k + 1) % 128;
+				}
+	}
+
+	if (!flag) {
+		 //In the case of O3, we check to see if the ways are ready and then add to the readyQueue
+		 u32 dieNo = lpn % DIE_NUM;
+		 if (SsdReadChWayStatus(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM) == 0) {
+				tQueue[tail] = c;
+				tail = (tail + 1) % 128;
+				return 1;
+			}
+			else {
+				queue_append(holdingQueue, (void *) c);
+				return 0;
+		 	}
+	}
+
+	else {
+		// this command needs to be inserted into the holding queue
+		// return 0;
+		queue_append(holdingQueue, c);
+		return 0;
+	}
+	return 0;
+
+}
+
+void checkHoldingQueue(void)
+{
+    // iterate through the holdingQueue and add any now ready transactions
+	// or any transactions that no longer hold dependencies
+	if ((head == tail + 1) || (tail == head + 1)) {
+		// the transaction Queue is full, just return now for efficiency.
+		return;
+	}
+	entity_t *curr = holdingQueue->head;
+	entity_t *prev = holdingQueue->head;
+	while (curr != NULL) {
+		if (checkDependencies( (P_HOST_CMD) curr->value)) {
+			// add to the readyQueue
+			tQueue[tail] = (P_HOST_CMD) curr->value;
+			tail = (tail + 1) % 128;
+			if (curr == prev) {
+				// the head of the holdingQueue is being removed
+				void* holder;
+				queue_dequeue(holdingQueue, &holder);
+				curr = holdingQueue->head;
+				prev = curr;
+				free(holder);
+			}
+			else {
+				entity_t *tmp = curr;
+				prev->next = curr->next;
+				// we still need to check curr's next but not change prev
+				curr = curr->next;
+				free(tmp);
+			}
+		}
+		else {
+			prev = curr;
+			curr = curr->next;
+		}
+	}
+}
 
 void ReqHandler(void)
 {
@@ -241,10 +242,7 @@ void ReqHandler(void)
 	for (i = 0; i < 128; i++) {
 		tQueue[i] = NULL;
 	}
-	
-	// O3: Initialize Ready Queue
-	readyQueue = queue_new();
-	
+
 	// Initialize Holding Queue
 	holdingQueue = queue_new();
 
@@ -287,91 +285,88 @@ void ReqHandler(void)
 
 			// Put host command in transaction queue
 			// When we put in the full fledged code, the following two lines should be taken out. - SHIWANI
-			tQueue[tail] = &hostCmd;
-			tail = (tail + 1) % 128;
+			// tQueue[tail] = &hostCmd;
+			// tail = (tail + 1) % 128;
 			u32 lpn = hostCmd.reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
 			
-			// if the tQueue is full, this automatically goes in the holding queue
-//			if ((head == tail + 1) || (tail == head + 1)) {
-//				queue_append(holdingQueue, hostCmd);
-//			}
-			
-			if((hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (hostCmd.reqInfo.Cmd == IDE_COMMAND_WRITE))
+			checkDependencies(&hostCmd);
+
+			P_HOST_CMD commandToIssue = tQueue[head];
+			head = (head + 1) % 128;
+
+			if((commandToIssue->reqInfo.Cmd == IDE_COMMAND_WRITE_DMA) ||  (commandToIssue->reqInfo.Cmd == IDE_COMMAND_WRITE))
 			{
 //				xil_printf("write(%d, %d)\r\n", hostCmd.reqInfo.CurSect, hostCmd.reqInfo.ReqSect);
-
-				// checkDependencies(hostCmd);
 				
-				PrePmRead(&hostCmd, RAM_DISK_BASE_ADDR);
+				PrePmRead(commandToIssue, RAM_DISK_BASE_ADDR);
 
-				deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
-				reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
-				scatterLength = hostCmd.reqInfo.HostScatterNum;
+				deviceAddr = RAM_DISK_BASE_ADDR + (commandToIssue->reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
+				reqSize = commandToIssue->reqInfo.ReqSect * SECTOR_SIZE;
+				scatterLength = commandToIssue->reqInfo.HostScatterNum;
 
-				DmaHostToDevice(&hostCmd, deviceAddr, reqSize, scatterLength);
+				DmaHostToDevice(commandToIssue, deviceAddr, reqSize, scatterLength);
 
-				PmWrite(&hostCmd, RAM_DISK_BASE_ADDR);
+				PmWrite(commandToIssue, RAM_DISK_BASE_ADDR);
 
-				CompleteCmd(&hostCmd);
+				CompleteCmd(commandToIssue);
 			}
 
-			else if((hostCmd.reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (hostCmd.reqInfo.Cmd == IDE_COMMAND_READ))
+			else if((commandToIssue->reqInfo.Cmd == IDE_COMMAND_READ_DMA) || (commandToIssue->reqInfo.Cmd == IDE_COMMAND_READ))
 			{
-//				xil_printf("read(%d, %d)\r\n", hostCmd.reqInfo.CurSect, hostCmd.reqInfo.ReqSect);
+//				xil_printf("read(%d, %d)\r\n", commandToIssue->reqInfo.CurSect, commandToIssue->reqInfo.ReqSect);
 
-				// checkDependencies(hostCmd);
-				
-				PmRead(&hostCmd, RAM_DISK_BASE_ADDR);
+				PmRead(commandToIssue, RAM_DISK_BASE_ADDR);
 
-				deviceAddr = RAM_DISK_BASE_ADDR + (hostCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
-				reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
-				scatterLength = hostCmd.reqInfo.HostScatterNum;
+				deviceAddr = RAM_DISK_BASE_ADDR + (commandToIssue->reqInfo.CurSect % SECTOR_NUM_PER_PAGE)*SECTOR_SIZE;
+				reqSize = commandToIssue->reqInfo.ReqSect * SECTOR_SIZE;
+				scatterLength = commandToIssue->reqInfo.HostScatterNum;
 
-				DmaDeviceToHost(&hostCmd, deviceAddr, reqSize, scatterLength);
+				DmaDeviceToHost(commandToIssue, deviceAddr, reqSize, scatterLength);
 
-				CompleteCmd(&hostCmd);
+				CompleteCmd(commandToIssue);
 			}
-			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_FLUSH_CACHE )
+			else if( commandToIssue->reqInfo.Cmd == IDE_COMMAND_FLUSH_CACHE )
 			{
 				DebugPrint("flush command\r\n");
-				CompleteCmd(&hostCmd);
+				CompleteCmd(commandToIssue);
 			}
-			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_IDENTIFY )
+			else if( commandToIssue->reqInfo.Cmd == IDE_COMMAND_IDENTIFY )
 			{
-				reqSize = hostCmd.reqInfo.ReqSect * SECTOR_SIZE;
-				scatterLength = hostCmd.reqInfo.HostScatterNum;
+				reqSize = commandToIssue->reqInfo.ReqSect * SECTOR_SIZE;
+				scatterLength = commandToIssue->reqInfo.HostScatterNum;
 
-				DmaDeviceToHost(&hostCmd, IDENTIFY_DEVICE_DATA_BASE_ADDR, reqSize, scatterLength);
-				CompleteCmd(&hostCmd);
+				DmaDeviceToHost(commandToIssue, IDENTIFY_DEVICE_DATA_BASE_ADDR, reqSize, scatterLength);
+				CompleteCmd(commandToIssue);
 			}
-			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SET_FEATURE )
+			else if( commandToIssue->reqInfo.Cmd == IDE_COMMAND_SET_FEATURE )
 			{
-				SetIdentifyData(pIdentifyData, &hostCmd);
-				CompleteCmd(&hostCmd);
+				SetIdentifyData(pIdentifyData, commandToIssue);
+				CompleteCmd(commandToIssue);
 			}
-			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SECURITY_FREEZE_LOCK )
+			else if( commandToIssue->reqInfo.Cmd == IDE_COMMAND_SECURITY_FREEZE_LOCK )
 			{
-				SetIdentifyData(pIdentifyData, &hostCmd);
-				CompleteCmd(&hostCmd);
+				SetIdentifyData(pIdentifyData, commandToIssue);
+				CompleteCmd(commandToIssue);
 			}
-			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_SMART )
+			else if( commandToIssue->reqInfo.Cmd == IDE_COMMAND_SMART )
 			{
-				DebugPrint("not support IDE_COMMAND_SMART:%x\r\n", hostCmd.reqInfo.Cmd);
-				hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
-				CompleteCmd(&hostCmd);
+				DebugPrint("not support IDE_COMMAND_SMART:%x\r\n", commandToIssue->reqInfo.Cmd);
+				commandToIssue->CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
+				CompleteCmd(commandToIssue);
 			}
-			else if( hostCmd.reqInfo.Cmd == IDE_COMMAND_ATAPI_IDENTIFY )
+			else if( commandToIssue->reqInfo.Cmd == IDE_COMMAND_ATAPI_IDENTIFY )
 			{
-				DebugPrint("not support IDE_COMMAND_ATAPI_IDENTIFY:%x\r\n", hostCmd.reqInfo.Cmd);
-				hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
-				CompleteCmd(&hostCmd);
+				DebugPrint("not support IDE_COMMAND_ATAPI_IDENTIFY:%x\r\n", commandToIssue->reqInfo.Cmd);
+				commandToIssue->CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
+				CompleteCmd(commandToIssue);
 			}
 			else
 			{
-				DebugPrint("not support command:%x\r\n", hostCmd.reqInfo.Cmd);
-				hostCmd.CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
-				CompleteCmd(&hostCmd);
+				DebugPrint("not support command:%x\r\n", commandToIssue->reqInfo.Cmd);
+				commandToIssue->CmdStatus = COMMAND_STATUS_INVALID_REQUEST;
+				CompleteCmd(commandToIssue);
 			}
+			checkHoldingQueue();
 		}
 	}
 }
