@@ -1,11 +1,14 @@
-#include "ftl.h"
+#include <math.h>
+#include "pagemap.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 
 int hash_UNH(int ints[], int num_ints, long m, int increment)
 {
-    static UINT32 rndseq[2048];
-    static UINT8 first_call =  1;
-    UINT16 i,k;
+    static uint32_t rndseq[2048];
+    static uint8_t first_call =  1;
+    uint16_t i,k;
     int index;
     int sum = 0;
 
@@ -62,15 +65,15 @@ int hash_UNH(int ints[], int num_ints, long m, int increment)
 int mod(int n, int k) {return (n >= 0) ? n%k : k-1-((-n-1)%k);}
 
 void GetTiles(
-    UINT16 tiles[],               // provided array contains returned tiles (tile indices)
-    UINT8 num_tilings,           // number of tile indices to be returned in tiles
-    UINT16 memory_size,           // total number of possible tiles
+    uint16_t tiles[],               // provided array contains returned tiles (tile indices)
+    uint8_t num_tilings,           // number of tile indices to be returned in tiles
+    uint16_t memory_size,           // total number of possible tiles
     float floats[],            // array of floating point variables
-    UINT8 num_floats,            // number of floating point variables
-    UINT16 ints[],       // array of integer variables
-    UINT8 num_ints)              // number of integer variables
+    uint8_t num_floats,            // number of floating point variables
+    uint16_t ints[],       // array of integer variables
+    uint8_t num_ints)              // number of integer variables
 {
-    UINT8 i,j;
+    uint8_t i,j;
     int qstate[MAX_NUM_VARS];
     int base[MAX_NUM_VARS];
     int coordinates[MAX_NUM_VARS * 2 + 1];   /* one interval number per relevant dimension */
@@ -82,7 +85,7 @@ void GetTiles(
     /* quantize state to integers (henceforth, tile widths == num_tilings) */
     for (i = 0; i < num_floats; i++)
     {
-        qstate[i] = (int) floor(floats[i] * num_tilings);
+        qstate[i] = (int) floor( (floats[i] * ((double) num_tilings)) );
         base[i] = 0;
     }
 

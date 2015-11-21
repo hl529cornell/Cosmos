@@ -1,10 +1,15 @@
 #include "ftl.h"
+#include "pagemap.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <float.h>
+#include <limits.h>
 #define debug_cmac 1
 //CMAC constructor
-initializeCMAC( UINT8 _numFloatInputs, UINT8 _numIntInputs, UINT16 _memorySize, 
-	       float _alpha, UINT8 _numTilings, UINT8 _tableDimensionality) {
+void initializeCMAC( unsigned char _numFloatInputs, unsigned char _numIntInputs, uint16_t _memorySize,
+	       float _alpha, unsigned char _numTilings, unsigned char _tableDimensionality) {
 
-  UINT8 i, j ;
+  unsigned char i, j ;
 
   qLearning.cmac.alpha = _alpha ;
   qLearning.cmac.numFloatInputs = _numFloatInputs ;
@@ -27,7 +32,8 @@ initializeCMAC( UINT8 _numFloatInputs, UINT8 _numIntInputs, UINT16 _memorySize,
 
   for ( j = 0 ; j < 128 ; j ++ ) {
     for ( i = 0 ; i < 32  ; i ++ ) {
-      write_dram_32_f( CMAC_ADDR + (((j*32)+i) * sizeof(float)), 1.0526 ) ;
+      float *ptr = (float *) CMAC_ADDR + (((j*32)+i) * sizeof(float));
+      *ptr = 1.0526;
     }
   }
 
@@ -74,7 +80,7 @@ void setIntInput(int index, int value ) {
 //Predict target for current input vector
 float predict()
 {
-  UINT8 i ;
+  unsigned char i ;
 
   //Populate tiles array with tile indices
   GetTiles(qLearning.cmac.tiles, qLearning.cmac.numTilings, qLearning.cmac.memorySize, qLearning.cmac.floatInputs, 
@@ -84,10 +90,11 @@ float predict()
   //Calculate the sum of all indexed tiles
   float sum = 0;
   for(i=0; i< qLearning.cmac.numTilings; i++){
-    UINT32 index = qLearning.cmac.tiles[i] ;
-    float value = read_dram_32_f( CMAC_ADDR + (index * sizeof(float)) ) ;
+    uint16_t index = qLearning.cmac.tiles[i] ;
+    float *ptr = (float *) CMAC_ADDR + (index * sizeof(float));
+    float value = *ptr;
     sum += value ; 
-    //UINT32 index = qLearning.cmac.tiles[i] ;
+    //uint16_t_t index = qLearning.cmac.tiles[i] ;
     //sum += qLearning.cmac.u[qLearning.cmac.tiles[i]];
 
     //if ( debug_cmac) 
@@ -106,7 +113,7 @@ float predict()
 //Train CMAC on current input towards given target
 void update(float target)
 {
-  UINT8 i ;
+  unsigned char i ;
   //Populate tiles array with tile indices
   GetTiles(qLearning.cmac.tiles, qLearning.cmac.numTilings, qLearning.cmac.memorySize, qLearning.cmac.floatInputs, 
 	   qLearning.cmac.numFloatInputs, qLearning.cmac.intInputs, qLearning.cmac.numIntInputs);
@@ -116,10 +123,11 @@ void update(float target)
 
   
   for(i=0; i< qLearning.cmac.numTilings; i++){
-    UINT32 index = qLearning.cmac.tiles[i] ;
-    float value = read_dram_32_f( CMAC_ADDR + (index * sizeof(float)) ) ;
+    uint16_t index = qLearning.cmac.tiles[i] ;
+    float *ptr = (float *) CMAC_ADDR + (index * sizeof(float));
+    float value = *ptr;
     pred += value ; 
-    //UINT32 index = qLearning.cmac.tiles[i] ;
+    //uint16_t_t index = qLearning.cmac.tiles[i] ;
     //pred += qLearning.cmac.u[qLearning.cmac.tiles[i]];
     
     //if ( debug_cmac) 
@@ -129,19 +137,20 @@ void update(float target)
   
   //Train CMAC memory cells
   for( i=0; i<qLearning.cmac.numTilings; i++){
-    UINT32 index = qLearning.cmac.tiles[i] ;
-    float value = read_dram_32_f( CMAC_ADDR + (index * sizeof(float)) ) ;
+    uint16_t index = qLearning.cmac.tiles[i] ;
+    float *ptr = (float *) CMAC_ADDR + (index * sizeof(float));
+    float value = *ptr;
     value += ((qLearning.cmac.alpha / qLearning.cmac.numTilings) * (target - pred));
-    write_dram_32_f( CMAC_ADDR + (index * sizeof(float)), value ) ;
+    *ptr = value;
     //qLearning.cmac.u[qLearning.cmac.tiles[i]] += ((qLearning.cmac.alpha / qLearning.cmac.numTilings) * (target - pred));
   }
 
   /*
   for(i=0; i< qLearning.cmac.numTilings; i++){
-    UINT32 index = qLearning.cmac.tiles[i] ;
+    uint16_t_t index = qLearning.cmac.tiles[i] ;
     float value = read_dram_32_f( CMAC_ADDR + (index * sizeof(float)) ) ;
     pred += value ; 
-    //UINT32 index = qLearning.cmac.tiles[i] ;
+    //uint16_t_t index = qLearning.cmac.tiles[i] ;
     //pred += qLearning.cmac.u[qLearning.cmac.tiles[i]];
     //if ( debug_cmac) 
     //uart_printf ( "After Update Iter: %d\tindex: %d\tValue: %f", i, index, value ) ;    

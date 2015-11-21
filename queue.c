@@ -21,8 +21,8 @@ queue_new() {
         return NULL;
     }
     // Initialize the values in the queue.
-    queue->front = NULL;
-    queue->back = NULL;
+    queue->head = NULL;
+    queue->tail = NULL;
     queue->length = 0;
     return queue;
 }
@@ -43,19 +43,19 @@ add_entity(queue_t *queue, void *item, const unsigned int append) {
     }
     entity->value = item;
     if (queue->length == 0) {
-        // Set the front and back pointers in the queue 
+        // Set the head and tail pointers in the queue
         // if this is the first item in the queue.
         entity->next = NULL;
-        queue->front = queue->back = entity;
+        queue->head = queue->tail = entity;
     } else if (append) {
         // Append the entity to the queue.
         entity->next = NULL;
-        queue->back->next = entity;
-        queue->back = entity;
+        queue->tail->next = entity;
+        queue->tail = entity;
     } else {
         // Prepend the entity to the queue.
-        entity->next = queue->front;
-        queue->front = entity;
+        entity->next = queue->head;
+        queue->head = entity;
     }
     queue->length++;
     return 0;
@@ -93,14 +93,14 @@ queue_dequeue(queue_t *queue, void **item) {
         *item = NULL;
         return -1;
     }
-    entity_t *entity = queue->front;
-    // Re-set the front pointer.
+    entity_t *entity = queue->head;
+    // Re-set the head pointer.
     if (queue->length == 1) {
         // The only entity in the queue is removed,
-        // so front and back point to NULL.
-        queue->front = queue->back = NULL;
+        // so head and tail point to NULL.
+        queue->head = queue->tail = NULL;
     } else {
-        queue->front = queue->front->next;
+        queue->head = queue->head->next;
     }
     queue->length--;
     *item = entity->value;
@@ -120,7 +120,7 @@ queue_iterate(queue_t *queue, func_t f, void* item) {
     if (queue == NULL || f == NULL) {
         return -1;
     }
-    entity_t *curr = queue->front;
+    entity_t *curr = queue->head;
     while (curr != NULL) {
         f(curr->value, item);
         curr = curr->next;
@@ -137,7 +137,7 @@ queue_free (queue_t *queue) {
     if (queue == NULL) {
         return -1;
     }
-    entity_t *curr = queue->front;
+    entity_t *curr = queue->head;
     entity_t *tmp;
     while (curr != NULL) {
         tmp = curr->next;
@@ -170,27 +170,27 @@ queue_delete(queue_t *queue, void* item) {
     if (queue == NULL || item == NULL || queue->length == 0) {
         return -1;
     }
-    if (queue->front->value == item) {
-        entity_t *entity = queue->front;
-        // Re-set the front pointer if it is deleted.
-        queue->front = queue->front->next;
-        if (queue->front == NULL) {
+    if (queue->head->value == item) {
+        entity_t *entity = queue->head;
+        // Re-set the head pointer if it is deleted.
+        queue->head = queue->head->next;
+        if (queue->head == NULL) {
             // Just deleted the only item in the queue.
-            queue->back = NULL;
+            queue->tail = NULL;
         }
         free(entity);
         entity = NULL;
         queue->length--;
         return 0;
     }
-    entity_t *prev = queue->front;
-    entity_t *curr = queue->front->next;
+    entity_t *prev = queue->head;
+    entity_t *curr = queue->head->next;
     while (curr != NULL) {
         if (curr->value == item) {
             prev->next = curr->next;
-            if (curr == queue->back) {
-                // Re-set the back pointer if it is deleted.
-                queue->back = prev;
+            if (curr == queue->tail) {
+                // Re-set the tail pointer if it is deleted.
+                queue->tail = prev;
             }
             free(curr);
             curr = NULL;

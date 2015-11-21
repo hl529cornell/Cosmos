@@ -152,12 +152,20 @@ struct gcArray* gcMap;
 #define DIE_MAP_ADDR	(BFSM_ADDR + sizeof(struct bfsmEntry) * DIE_NUM * STATE_NUM * BIN_NUM)
 #define GC_MAP_ADDR		(DIE_MAP_ADDR + sizeof(struct dieEntry) * DIE_NUM)
 
-// memory address of buffer for GC migration
-#define GC_BUFFER_ADDR	(GC_MAP_ADDR + sizeof(struct gcEntry) * DIE_NUM*(PAGE_NUM_PER_BLOCK + 1))
+// ===============================================================
+// Adding Janani's code
+// ===============================================================
+
+#define CMAC_ADDR		(GC_MAP_ADDR + sizeof(struct gcEntry) * DIE_NUM*(PAGE_NUM_PER_BLOCK + 1))
+#define CMAC_BYTES		(sizeof(float) * 4096)
 
 #define BAD_BLOCK_MARK_POSITION	(7972)
 #define METADATA_BLOCK_PPN	 	0x00000000 // write metadata to Block0 of Die0
 #define EMPTY_BYTE				0xff
+
+
+// memory address of buffer for GC migration
+#define GC_BUFFER_ADDR (CMAC_ADDR + CMAC_BYTES)
 
 extern u32 BAD_BLOCK_SIZE;
 
@@ -184,5 +192,171 @@ void FlushPageBuf(u32 lpn, u32 bufAddr);
 void UpdateMetaForOverwrite(u32 lpn);
 void MoveBSTEntry(u32 dieNo, u32 blockNo, state curState, unsigned char curBin, state nextState, unsigned char nextBin);
 //void MvData(u32* src, u32* dst, u32 sectSize);
+
+///////////////////////////////
+// FTL RL data structures
+///////////////////////////////
+#define NUM_FEATURE_TYPES 4
+#define NUM_FEATURES      4
+#define NUM_TILINGS       32
+#define ISSUE_GC  1
+#define ISSUE_NOP 2
+
+
+unsigned short MEM_SIZE ;
+
+//State information
+typedef struct State {
+  //Array that tracks stats
+  float stats[NUM_FEATURE_TYPES];
+} State ;
+
+typedef struct Tuple {
+
+  //Current state
+  State currentState;
+  //Action taken
+  unsigned char currentAction;
+  //Reward
+  float reward;
+
+  //Next state for sarsa updates
+  State nextState;
+  //Next action for sarsa updates
+  unsigned char nextAction;
+
+} Tuple ;
+
+
+typedef struct CMAC {
+
+  //Learning rate
+  float alpha;
+
+  //Input float vector
+  float floatInputs[NUM_FEATURES];
+
+  //Number of float inputs
+  unsigned char numFloatInputs;
+
+  //Input int vector
+  unsigned short intInputs[2];
+
+  //Number of int inputs
+  unsigned char numIntInputs;
+
+  //Tile indices (after hashing)
+  unsigned short tiles[NUM_TILINGS];
+
+  //CMAC array
+  //float u[MEM_SIZE];
+  float u[1];
+
+  //Size of CMAC array
+  unsigned short memorySize;
+
+  //Number of tilings (after hashing)
+  unsigned char numTilings;
+
+  //Dimensionality of distinct tables
+  unsigned char tableDimensionality;
+} CMAC ;
+
+//Q-Learning
+typedef struct QLearning {
+
+  //Largest Bellman error of the current sweep
+  float bellmanError;
+
+  //Number of input features
+  unsigned char numFeatures;
+  //Number of actions
+  unsigned char numActions;
+  //Discount rate
+  float delta;
+  //Learning rate
+  float alpha;
+
+  //CMAC across state-action space
+  CMAC cmac;
+
+  //Features selected for tiling
+  unsigned char features[NUM_FEATURES];
+
+} QLearning;
+
+
+QLearning qLearning ;
+
+//Random action probability of RL scheduler
+float epsilon;
+
+//Current state
+State currentState;
+
+//Next state
+State nextState;
+
+//Current action
+unsigned char currentAction;
+
+//Next action
+unsigned char nextAction;
+
+//Current reward
+float currentReward;
+
+//Next reward
+float nextReward;
+
+//Tuple for <s,a,r,s',a'>
+Tuple t;
+
+unsigned char  numFeatures ;
+unsigned char  features[NUM_FEATURES] ;
+
+unsigned char  numActions  ;
+float rewardGC ;
+float rewardNOP ;
+
+float delta ;
+float alpha ;
+float epsilon ;
+
+unsigned short memorySize ;
+unsigned short numTilings ;
+unsigned char  tableDim ;
+
+float qValPred ;
+
+///////////////////////////////
+// FTL RL functions
+///////////////////////////////
+
+void initializeRL() ;
+
+
+// STATE FUNCTIONS
+//Constructor
+void initializeState( State s ) ;
+
+//QLEARNER FUNCTIONS
+void initializeQLearner(unsigned char _numFeatures, unsigned char _numActions, float _delta, float _alpha, unsigned short _memorySize, unsigned char _numTilings, unsigned char _tableDimensionality) ;
+
+
+//CMAC FUNCTIONS
+void initializeCMAC( unsigned char _numFloatInputs, unsigned char _numIntInputs, unsigned short _memorySize, float _alpha, unsigned char _numTilings, unsigned char _tableDimensionality) ;
+void setFloatInput(int index, float value ) ;
+void setIntInput(int index, int value ) ;
+float predict() ;
+void update(float target) ;
+void GetTiles(
+    unsigned short tiles[],     // provided array contains returned tiles (tile indices)
+    unsigned char num_tilings,  // number of tile indices to be returned in tiles
+    unsigned short memory_size, // total number of possible tiles
+    float floats[],     // array of floating point variables
+    unsigned char num_floats,   // number of floating point variables
+    unsigned short ints[],      // array of integer variables
+    unsigned char num_ints) ;   // number of integer variables
 
 #endif /* PAGEMAP_H_ */

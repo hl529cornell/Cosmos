@@ -1,7 +1,9 @@
 #include "ftl.h"
+#include "pagemap.h"
+#include <stdint.h>
 
 // QLearner Functions
-void initializeQLearner(UINT8 _numFeatures, UINT8 _numActions, float _delta, float _alpha, UINT16 _memorySize, UINT8 _numTilings, UINT8 _tableDimensionality) {
+void initializeQLearner(uint8_t _numFeatures, uint8_t _numActions, float _delta, float _alpha, uint16_t _memorySize, uint8_t _numTilings, uint8_t _tableDimensionality) {
   qLearning.bellmanError = 0 ;
   qLearning.numFeatures  = _numFeatures ;
   qLearning.numActions   = _numActions ;
@@ -14,7 +16,7 @@ void initializeQLearner(UINT8 _numFeatures, UINT8 _numActions, float _delta, flo
 //Initialize CMAC inputs based on given state-action information
 void populateCMAC(State s, int a)
 {  
-  UINT8 i ;
+  uint8_t i ;
   //Set state information
   for( i=0; i<numFeatures; i++){
     qLearning.cmac.floatInputs[i] =  s.stats[i] ;  

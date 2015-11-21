@@ -1,18 +1,20 @@
-#include "ftl.h"
+#include "pagemap.h"
+#include <stdint.h>
+#include "State.h"
 #define debug_init_rl 1
 
 void initializeRL() {
-  UINT8 i ;
+  uint8_t i ;
 
   MEM_SIZE = 4096 ;
-  uart_printf ( "\nInitialize RL" ) ;
+  xil_printf ( "\nInitialize RL" ) ;
   numFeatures = 4 ;
   if ( debug_init_rl ) 
-    uart_printf ( "NumFeatures: %d", numFeatures ) ;    
+    xil_printf ( "NumFeatures: %d", numFeatures ) ;
   for (  i = 0 ; i < numFeatures ; i ++ ) {
     features[i] = i ;
     if ( debug_init_rl ) 
-      uart_printf ( "Feature[%d]: %d", i, features[i] ) ;      
+      xil_printf ( "Feature[%d]: %d", i, features[i] ) ;
   }
 
   numActions = 2 ;
@@ -36,9 +38,9 @@ void initializeRL() {
 
 
   if ( debug_init_rl ) {
-    uart_printf ( "Num Actions: %d", numActions ) ; 
-    uart_printf ( "rewardGC : %f", rewardGC ) ; 
-    uart_printf ( "rewardNOP: %f", rewardNOP ) ;   
+    xil_printf ( "Num Actions: %d", numActions ) ;
+    xil_printf ( "rewardGC : %f", rewardGC ) ;
+    xil_printf ( "rewardNOP: %f", rewardNOP ) ;
   }
 
   delta = 0.95 ; // discount factor gamma
@@ -50,27 +52,27 @@ void initializeRL() {
   tableDim   = 2 ;
   epsilon    = 0.05 ;
 
-  UINT16 msize = 4096 ;
+  uint16_t msize = 4096 ;
   memorySize = msize ;
 
   if ( debug_init_rl ) {
-    uart_printf ( "Delta: %f", delta ) ; 
-    uart_printf ( "Alpha: %f", alpha ) ; 
-    //uart_printf ( "Memory Size: %d", memorySize ) ; 
-    uart_printf ( "Num Tilings: %d", numTilings ) ; 
-    uart_printf ( "Table Dim: %d", tableDim ) ; 
-    uart_printf ( "Epsilon: %f", epsilon ) ; 
-    uart_printf ( "CMAC Size: %d", msize  ) ;
-    uart_printf ( "CMAC Size: %d", memorySize  ) ;
+    xil_printf ( "Delta: %f", delta ) ;
+    xil_printf ( "Alpha: %f", alpha ) ;
+    //xil_printf ( "Memory Size: %d", memorySize ) ;
+    xil_printf ( "Num Tilings: %d", numTilings ) ;
+    xil_printf ( "Table Dim: %d", tableDim ) ;
+    xil_printf ( "Epsilon: %f", epsilon ) ;
+    xil_printf ( "CMAC Size: %d", msize  ) ;
+    xil_printf ( "CMAC Size: %d", memorySize  ) ;
   }  
 
   initializeQLearner(numFeatures, numActions, delta, alpha, memorySize, numTilings, tableDim);
 
   if ( debug_init_rl ) {
-    uart_printf ( "Q Learner Delta: %f", qLearning.delta ) ; 
-    uart_printf ( "Q Learner Alpha: %f", qLearning.alpha ) ; 
-    uart_printf ( "Q Learner Num Features: %d", qLearning.numFeatures ) ; 
-    uart_printf ( "Q Learner Num Actionss: %d", qLearning.numActions ) ; 
+    xil_printf ( "Q Learner Delta: %f", qLearning.delta ) ;
+    xil_printf ( "Q Learner Alpha: %f", qLearning.alpha ) ;
+    xil_printf ( "Q Learner Num Features: %d", qLearning.numFeatures ) ;
+    xil_printf ( "Q Learner Num Actionss: %d", qLearning.numActions ) ;
   }
 
   initializeState ( currentState ) ;
@@ -90,17 +92,17 @@ void initializeRL() {
   initializeTuple ( currentState, currentAction, currentReward, nextState, nextAction ) ;
 
   if ( debug_init_rl ) {
-    uart_printf ( "\nTuple Initialization: " ) ;
+    xil_printf ( "\nTuple Initialization: " ) ;
     for ( i = 0 ; i < NUM_FEATURES ; i ++ ) {
-      uart_printf ( "t.currentState.stats[%d]: %f", i, t.currentState.stats[i] ) ;
+      xil_printf ( "t.currentState.stats[%d]: %f", i, t.currentState.stats[i] ) ;
     }
     for ( i = 0 ; i < NUM_FEATURES ; i ++ ) {
-      uart_printf ( "t.nextState.stats[%d]: %f", i, t.nextState.stats[i] ) ;
+      xil_printf ( "t.nextState.stats[%d]: %f", i, t.nextState.stats[i] ) ;
     }
 
-    uart_printf ( "t.reward: %f", t.reward ) ;
-    uart_printf ( "t.currentAction: %d", t.currentAction ) ; 
-    uart_printf ( "t.nextAction: %d", t.nextAction ) ; 
+    xil_printf ( "t.reward: %f", t.reward ) ;
+    xil_printf ( "t.currentAction: %d", t.currentAction ) ;
+    xil_printf ( "t.nextAction: %d", t.nextAction ) ;
 
     State cs, ns ;
     for ( i = 0 ; i < NUM_FEATURES ; i ++ ) {
@@ -120,17 +122,17 @@ void initializeRL() {
 
 
     initializeTuple ( currentState, currentAction, currentReward, nextState, nextAction ) ;
-    uart_printf ( "\nTuple Initialization: " ) ;
+    xil_printf ( "\nTuple Initialization: " ) ;
     for ( i = 0 ; i < NUM_FEATURES ; i ++ ) {
-      uart_printf ( "t.currentState.stats[%d]: %f", i, t.currentState.stats[i] ) ;
+      xil_printf ( "t.currentState.stats[%d]: %f", i, t.currentState.stats[i] ) ;
     }
     for ( i = 0 ; i < NUM_FEATURES ; i ++ ) {
-      uart_printf ( "t.nextState.stats[%d]: %f", i, t.nextState.stats[i] ) ;
+      xil_printf ( "t.nextState.stats[%d]: %f", i, t.nextState.stats[i] ) ;
     }
 
-    uart_printf ( "t.reward: %f", t.reward ) ;
-    uart_printf ( "t.currentAction: %d", t.currentAction ) ; 
-    uart_printf ( "t.nextAction: %d", t.nextAction ) ; 
+    xil_printf ( "t.reward: %f", t.reward ) ;
+    xil_printf ( "t.currentAction: %d", t.currentAction ) ;
+    xil_printf ( "t.nextAction: %d", t.nextAction ) ;
   }
 
   for ( i = 0 ; i < NUM_FEATURES ; i ++ ) {

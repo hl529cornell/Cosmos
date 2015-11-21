@@ -1,9 +1,11 @@
-#include "ftl.h"
+#include "pagemap.h"
+#include <stdint.h>
 
 //Constructor
 void initializeState( State s) {
   //Initialize stats array
-  for(UINT8 i=0; i<NUM_FEATURE_TYPES; i++){
+  uint8_t i;
+  for(i=0; i<NUM_FEATURE_TYPES; i++){
     s.stats[i] = 0;
   }
 }
