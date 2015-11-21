@@ -218,6 +218,16 @@ UINT8  tableDim ;
 
 float qValPred ;
 
+
+
+// ===============================================================
+// Adding Janani's code
+// ===============================================================
+
+#define CMAC_ADDR		(FCOUNT_ADDR + FCOUNT_BYTES)
+#define CMAC_BYTES		(sizeof(float) * 4096)
+
+
 ///////////////////////////////
 // FTL RL functions
 ///////////////////////////////
