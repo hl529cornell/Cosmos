@@ -1,4 +1,4 @@
-#include "jasmine.h"
+#include "ftl.h"
 
 // QLearner Functions
 void initializeQLearner(UINT8 _numFeatures, UINT8 _numActions, float _delta, float _alpha, UINT16 _memorySize, UINT8 _numTilings, UINT8 _tableDimensionality) {

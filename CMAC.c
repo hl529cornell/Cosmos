@@ -1,4 +1,4 @@
-#include "jasmine.h" 
+#include "ftl.h"
 #define debug_cmac 1
 //CMAC constructor
 initializeCMAC( UINT8 _numFloatInputs, UINT8 _numIntInputs, UINT16 _memorySize, 
