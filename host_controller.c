@@ -73,15 +73,35 @@ P_COMPLETION_IO pCompletionIO =  (P_COMPLETION_IO)COMPLETION_IO_BASE_ADDR;
 
 u32 CheckRequest()
 {
+
+//	u32 reqStart;
+//	u32 shutdown;
+//
+//	DebugPrint("Call check_request..\n\r");
+//
+//	do{
+//		reqStart = Xil_In32(CONFIG_SPACE_REQUEST_START);
+//		shutdown = Xil_In32(CONFIG_SPACE_SHUTDOWN);
+//	}while((reqStart == 0) && (shutdown == 0));
+//
+//	if(shutdown == 1)
+//	{
+//		Xil_Out32(CONFIG_SPACE_SHUTDOWN, 0);
+//		return 0;
+//	}
+//
+//	Xil_Out32(CONFIG_SPACE_REQUEST_START, 0);
+//	return 1;
+
 	u32 reqStart;
 	u32 shutdown;
 
 	DebugPrint("Call check_request..\n\r");
 
-	do{
-		reqStart = Xil_In32(CONFIG_SPACE_REQUEST_START);
-		shutdown = Xil_In32(CONFIG_SPACE_SHUTDOWN);
-	}while((reqStart == 0) && (shutdown == 0));
+	//do{
+	reqStart = Xil_In32(CONFIG_SPACE_REQUEST_START);
+	shutdown = Xil_In32(CONFIG_SPACE_SHUTDOWN);
+	//}while((reqStart == 0) && (shutdown == 0));
 
 	if(shutdown == 1)
 	{
@@ -89,8 +109,12 @@ u32 CheckRequest()
 		return 0;
 	}
 
-	Xil_Out32(CONFIG_SPACE_REQUEST_START, 0);
-	return 1;
+	// to make non-blocking
+	if (reqStart == 1){
+		Xil_Out32(CONFIG_SPACE_REQUEST_START, 0);
+		return 1;
+	}
+	return 2;
 }
 
 u32 GetRequestCmd(P_HOST_CMD hostCmd)

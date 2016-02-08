@@ -32,16 +32,16 @@ queue_new() {
  * depending on the value of "append".
  */
 int
-add_entity(queue_t *queue, void *item, const unsigned int append) {
+add_entity(queue_t *queue, P_HOST_CMD c, const unsigned int append) {
     // Cannot add an entity to a NULL queue nor from a NULL item.
-    if (queue == NULL || item == NULL) {
+    if (queue == NULL || c == NULL) {
         return -1;
     }
     entity_t *entity = (entity_t*) malloc(sizeof(entity_t));
     if (entity == NULL) {
         return -1;
     }
-    entity->value = item;
+    entity->cmd = c;
     if (queue->length == 0) {
         // Set the head and tail pointers in the queue
         // if this is the first item in the queue.
@@ -66,8 +66,8 @@ add_entity(queue_t *queue, void *item, const unsigned int append) {
  * 0 (success) or -1 (failure).
  */
 int
-queue_prepend(queue_t *queue, void *item) {
-    return add_entity(queue, item, PREPEND);
+queue_prepend(queue_t *queue, P_HOST_CMD c) {
+    return add_entity(queue, c, PREPEND);
 }
 
 /*
@@ -75,8 +75,8 @@ queue_prepend(queue_t *queue, void *item) {
  * 0 (success) or -1 (failure).
  */
 int
-queue_append(queue_t *queue, void *item) {
-    return add_entity(queue, item, APPEND);
+queue_append(queue_t *queue, P_HOST_CMD c) {
+    return add_entity(queue, c, APPEND);
 }
 
 /*
@@ -84,13 +84,13 @@ queue_append(queue_t *queue, void *item) {
  * is empty.  Return 0 (success) or -1 (failure).
  */
 int
-queue_dequeue(queue_t *queue, void **item) {
+queue_dequeue(queue_t *queue, P_HOST_CMD* c) {
     // Cannot dequeue from a NULL queue nor place the value in a NULL item.
-    if (queue == NULL || item == NULL) {
+    if (queue == NULL || c == NULL) {
         return -1;
     }
     if (queue->length == 0) { // The queue is empty.
-        *item = NULL;
+        *c = NULL;
         return -1;
     }
     entity_t *entity = queue->head;
@@ -103,28 +103,8 @@ queue_dequeue(queue_t *queue, void **item) {
         queue->head = queue->head->next;
     }
     queue->length--;
-    *item = entity->value;
+    *c = entity->cmd;
     free(entity);
-    return 0;
-}
-
-/*
- * Iterate the function parameter over each element in the queue.  The
- * additional void* argument is passed to the function as its second
- * argument and the queue element is the first.  Return 0 (success)
- * or -1 (failure).
- */
-int
-queue_iterate(queue_t *queue, func_t f, void* item) {
-    // Cannot iterate through a NULL queue nor call a NULL function.
-    if (queue == NULL || f == NULL) {
-        return -1;
-    }
-    entity_t *curr = queue->head;
-    while (curr != NULL) {
-        f(curr->value, item);
-        curr = curr->next;
-    }
     return 0;
 }
 
@@ -160,45 +140,3 @@ queue_length(const queue_t *queue) {
     return queue->length;
 }
 
-/*
- * Delete the specified item from the given queue.
- * Return -1 on error.
- */
-int
-queue_delete(queue_t *queue, void* item) {
-    // Cannot delete an item from a NULL or empty queue, nor delete a NULL item.
-    if (queue == NULL || item == NULL || queue->length == 0) {
-        return -1;
-    }
-    if (queue->head->value == item) {
-        entity_t *entity = queue->head;
-        // Re-set the head pointer if it is deleted.
-        queue->head = queue->head->next;
-        if (queue->head == NULL) {
-            // Just deleted the only item in the queue.
-            queue->tail = NULL;
-        }
-        free(entity);
-        entity = NULL;
-        queue->length--;
-        return 0;
-    }
-    entity_t *prev = queue->head;
-    entity_t *curr = queue->head->next;
-    while (curr != NULL) {
-        if (curr->value == item) {
-            prev->next = curr->next;
-            if (curr == queue->tail) {
-                // Re-set the tail pointer if it is deleted.
-                queue->tail = prev;
-            }
-            free(curr);
-            curr = NULL;
-            queue->length--;
-            return 0;
-        }
-        prev = curr;
-        curr = curr->next;
-    }
-    return -1;
-}

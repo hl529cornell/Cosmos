@@ -58,10 +58,10 @@
 #define RELOC_WR_RWD          2.57
 #define ERASE_RWD             3.71
 #define WAIT_BEFORE_ERASE_RWD 1.09
+#define TQUEUE_MAX			  128
 
 // Transaction Queue
-P_HOST_CMD tQueue[128];
-int head, tail;
+queue_t *tQueue;
 
 // Queue to hold transactions that are not ready
 queue_t *holdingQueue;
