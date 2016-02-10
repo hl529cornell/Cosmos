@@ -153,7 +153,15 @@ typedef struct _HOST_CMD
 	u32	dScatterRegionLen;
 	u32	dataTransferDirection;
 	REQUEST_IO	reqInfo;
+	u32 completed;
 }HOST_CMD, *P_HOST_CMD;
+
+typedef struct _CHILD_CMD
+{
+	P_HOST_CMD parent;
+	REQUEST_IO	reqInfo;
+}CHILD_CMD, *P_CHILD_CMD;
+
 
 
 

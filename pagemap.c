@@ -493,7 +493,8 @@ int PrePmRead(P_HOST_CMD hostCmd, u32 bufferAddr)
 
 				WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 				SsdRead(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, pageMap->pmEntry[dieNo][dieLpn].ppn, bufferAddr);
-				WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
+				// we don't see the point of this second WaitWayFree
+				//WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 
 				pageBufLpn = lpn;
 			}
@@ -515,7 +516,8 @@ int PrePmRead(P_HOST_CMD hostCmd, u32 bufferAddr)
 			WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 			SsdRead(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM, pageMap->pmEntry[dieNo][dieLpn].ppn,
 					bufferAddr + ((((hostCmd->reqInfo.CurSect)% SECTOR_NUM_PER_PAGE) + hostCmd->reqInfo.ReqSect)/SECTOR_NUM_PER_PAGE*PAGE_SIZE));
-			WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
+			// we don't see the point of this second WaitWayFree
+			//WaitWayFree(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM);
 		}
 	}
 
@@ -650,9 +652,10 @@ int PmWrite(P_HOST_CMD hostCmd, u32 bufferAddr)
 		loop -= SECTOR_NUM_PER_PAGE;
 	}
 
-	int i;
-	for(i=0 ; i<DIE_NUM ; ++i)
-		WaitWayFree(i%CHANNEL_NUM, i/CHANNEL_NUM);
+	// TODO: Why does it do this?
+	//int i;
+	//for(i=0 ; i<DIE_NUM ; ++i)
+	//	WaitWayFree(i%CHANNEL_NUM, i/CHANNEL_NUM);
 
 	return 0;
 }

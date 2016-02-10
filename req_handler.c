@@ -219,7 +219,7 @@ void ReqHandler(void)
 
 		if (queue_length(tQueue) > 0) {
 			if (queue_length(holdingQueue) > 0) {
-				while (queue_length(tQueue) < 128) {
+				while (queue_length(tQueue) < TQUEUE_MAX) {
 					P_HOST_CMD cmd;
 					queue_dequeue(holdingQueue, &cmd);
 					queue_append(tQueue, cmd);
