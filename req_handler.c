@@ -116,18 +116,18 @@ void nextReadyCmd(P_HOST_CMD *c){
 	for (i = 0; i < DIE_NUM; i++) {
 		diesReady[i] = 0;
 	}
-	entity_t *curr = tQueue->head;
+	entity_t *curr = tQueue.head;
 	entity_t *prev = NULL;
 	u32 dieNo;
 	while (curr != NULL){
 		dieNo = (curr->cmd->reqInfo.CurSect / SECTOR_NUM_PER_PAGE) % DIE_NUM;
 		if (!diesReady[dieNo] && SsdReadChWayStatus(dieNo % CHANNEL_NUM, dieNo / CHANNEL_NUM) == 0){
 			if (prev == NULL) {
-				queue_dequeue(tQueue, c);
+				queue_dequeue(&tQueue, c);
 			} else {
 				prev->next = curr->next;
 				*c = curr->cmd;
-				free(curr);
+				//free(curr);
 			}
 			return;
 		} else {
@@ -163,11 +163,15 @@ void ReqHandler(void)
 
 	xil_printf("Before initializing transaction queue \r\n");
 	// Initialize Transaction Queue
-	tQueue = queue_new();
+	tQueue.head = NULL;
+	tQueue.tail = NULL;
+	tQueue.length = 0;
 
 	xil_printf("Before initializing holding queue \r\n");
 	// Initialize Holding Queue
-	holdingQueue = queue_new();
+	holdingQueue.head = NULL;
+	holdingQueue.tail = NULL;
+	holdingQueue.length = 0;
 
 	printf("[ Initialization is completed. ]\r\n");
 
@@ -208,21 +212,28 @@ void ReqHandler(void)
 
 
 			// u32 lpn = hostCmd.reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
+			// u32 lpn = hostCmd->reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
+
+			// int loop = (hostCmd->reqInfo.CurSect % SECTOR_NUM_PER_PAGE) + hostCmd->reqInfo.ReqSect;
 			
-			if (queue_length(tQueue) == TQUEUE_MAX) {
-				queue_append(holdingQueue, &hostCmd);
-			} else {
-				// Put command in transaction queue
-				queue_append(tQueue, &hostCmd);
+			// while (loop > 0) {
+				// divide up command
+
+				if (tQueue.length == TQUEUE_MAX) {
+					queue_append(&holdingQueue, &hostCmd);
+				} else {
+					// Put command in transaction queue
+					queue_append(&tQueue, &hostCmd);
+				}
 			}
 		}
 
-		if (queue_length(tQueue) > 0) {
-			if (queue_length(holdingQueue) > 0) {
-				while (queue_length(tQueue) < TQUEUE_MAX) {
+		if (tQueue.length > 0) {
+			if (holdingQueue.length > 0) {
+				while (tQueue.length < TQUEUE_MAX) {
 					P_HOST_CMD cmd;
-					queue_dequeue(holdingQueue, &cmd);
-					queue_append(tQueue, cmd);
+					queue_dequeue(&holdingQueue, &cmd);
+					queue_append(&tQueue, cmd);
 				}
 			}
 			P_HOST_CMD commandToIssue;
@@ -302,5 +313,5 @@ void ReqHandler(void)
 			}
 		}
 	}
-}
+//}
 //}

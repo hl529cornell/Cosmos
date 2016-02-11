@@ -37,25 +37,27 @@ add_entity(queue_t *queue, P_HOST_CMD c, const unsigned int append) {
     if (queue == NULL || c == NULL) {
         return -1;
     }
-    entity_t *entity = (entity_t*) malloc(sizeof(entity_t));
-    if (entity == NULL) {
-        return -1;
-    }
-    entity->cmd = c;
+    // entity_t *entity = (entity_t*) malloc(sizeof(entity_t));
+    //if (entity == NULL) {
+    //    return -1;
+    //}
+
+    entity_t entity;
+    entity.cmd = c;
     if (queue->length == 0) {
         // Set the head and tail pointers in the queue
         // if this is the first item in the queue.
-        entity->next = NULL;
-        queue->head = queue->tail = entity;
+        entity.next = NULL;
+        queue->head = queue->tail = &entity;
     } else if (append) {
         // Append the entity to the queue.
-        entity->next = NULL;
-        queue->tail->next = entity;
-        queue->tail = entity;
+        entity.next = NULL;
+        queue->tail->next = &entity;
+        queue->tail = &entity;
     } else {
         // Prepend the entity to the queue.
-        entity->next = queue->head;
-        queue->head = entity;
+        entity.next = queue->head;
+        queue->head = &entity;
     }
     queue->length++;
     return 0;
@@ -104,7 +106,7 @@ queue_dequeue(queue_t *queue, P_HOST_CMD* c) {
     }
     queue->length--;
     *c = entity->cmd;
-    free(entity);
+    //free(entity);
     return 0;
 }
 

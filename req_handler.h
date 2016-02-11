@@ -61,10 +61,10 @@
 #define TQUEUE_MAX			  128
 
 // Transaction Queue
-queue_t *tQueue;
+queue_t tQueue;
 
 // Queue to hold transactions that are not ready
-queue_t *holdingQueue;
+queue_t holdingQueue;
 
 // CMACs
 int CMAC_1[10][10][10][10][10];
