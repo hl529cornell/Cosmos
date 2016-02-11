@@ -32,7 +32,7 @@ queue_new() {
  * depending on the value of "append".
  */
 int
-add_entity(queue_t *queue, P_HOST_CMD c, const unsigned int append) {
+add_entity(queue_t *queue, P_CHILD_CMD c, const unsigned int append) {
     // Cannot add an entity to a NULL queue nor from a NULL item.
     if (queue == NULL || c == NULL) {
         return -1;
@@ -68,7 +68,7 @@ add_entity(queue_t *queue, P_HOST_CMD c, const unsigned int append) {
  * 0 (success) or -1 (failure).
  */
 int
-queue_prepend(queue_t *queue, P_HOST_CMD c) {
+queue_prepend(queue_t *queue, P_CHILD_CMD c) {
     return add_entity(queue, c, PREPEND);
 }
 
@@ -77,7 +77,7 @@ queue_prepend(queue_t *queue, P_HOST_CMD c) {
  * 0 (success) or -1 (failure).
  */
 int
-queue_append(queue_t *queue, P_HOST_CMD c) {
+queue_append(queue_t *queue, P_CHILD_CMD c) {
     return add_entity(queue, c, APPEND);
 }
 
@@ -86,7 +86,7 @@ queue_append(queue_t *queue, P_HOST_CMD c) {
  * is empty.  Return 0 (success) or -1 (failure).
  */
 int
-queue_dequeue(queue_t *queue, P_HOST_CMD* c) {
+queue_dequeue(queue_t *queue, P_CHILD_CMD* c) {
     // Cannot dequeue from a NULL queue nor place the value in a NULL item.
     if (queue == NULL || c == NULL) {
         return -1;

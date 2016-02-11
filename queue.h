@@ -14,7 +14,7 @@
 // Represents each node in the linked queue structure.
 typedef struct entity {
     // The command
-	P_HOST_CMD cmd;
+	P_CHILD_CMD cmd;
     // The next entity in the queue (from front to back).
     struct entity *next;
 } entity_t;
@@ -36,20 +36,20 @@ queue_t* queue_new();
  * Prepend a void* to a queue (both specifed as parameters).
  * Returns 0 (success) or -1 (failure).
  */
-int queue_prepend(queue_t*, P_HOST_CMD);
+int queue_prepend(queue_t*, P_CHILD_CMD);
 
 /*
  * Appends a void* to a queue (both specifed as parameters).  Return
  * 0 (success) or -1 (failure).
  */
-int queue_append(queue_t*, P_HOST_CMD);
+int queue_append(queue_t*, P_CHILD_CMD);
 
 /*
  * Dequeue and return the first void* from the queue.
  * Return 0 (success) and first item if queue is nonempty, or -1 (failure) and
  * NULL if queue is empty.
  */
-int queue_dequeue(queue_t*, P_HOST_CMD*);
+int queue_dequeue(queue_t*, P_CHILD_CMD*);
 
 /*
  * Free the queue and return 0 (success) or -1 (failure).

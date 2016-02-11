@@ -110,7 +110,7 @@ XAxiCdma_Config XAxiCdma_ConfigTable[] =
 	}
 };
 
-void nextReadyCmd(P_HOST_CMD *c){
+void nextReadyCmd(P_CHILD_CMD *c){
 	u32 diesReady[DIE_NUM];
 	int i;
 	for (i = 0; i < DIE_NUM; i++) {
@@ -212,26 +212,41 @@ void ReqHandler(void)
 
 
 			// u32 lpn = hostCmd.reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
-			// u32 lpn = hostCmd->reqInfo.CurSect / SECTOR_NUM_PER_PAGE;
 
-			// int loop = (hostCmd->reqInfo.CurSect % SECTOR_NUM_PER_PAGE) + hostCmd->reqInfo.ReqSect;
+			int numPages = (hostCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE) + hostCmd.reqInfo.ReqSect;
+			int numLoop = 0;
 			
-			// while (loop > 0) {
+			CHILD_CMD cCmd;
+			while (numPages > 0) {
 				// divide up command
+				cCmd.parent = &hostCmd;
+				cCmd.reqInfo.Cmd = hostCmd.reqInfo.Cmd;
+				cCmd.reqInfo.CurSect = (hostCmd.reqInfo.CurSect + (SECTOR_NUM_PER_PAGE * numLoop)) / SECTOR_NUM_PER_PAGE;
+				// TODO: not sure what to do about these, they are used for the DMA transfer
+
+				cCmd.reqInfo.HostScatterAddrL;
+				cCmd.reqInfo.HostScatterAddrU;
+				cCmd.reqInfo.HostScatterNum;
+
+				// we want just enough to get to the next page
+				cCmd.reqInfo.ReqSect = SECTOR_NUM_PER_PAGE - (cCmd.reqInfo.CurSect % SECTOR_NUM_PER_PAGE);
 
 				if (tQueue.length == TQUEUE_MAX) {
-					queue_append(&holdingQueue, &hostCmd);
+					queue_append(&holdingQueue, &cCmd);
 				} else {
 					// Put command in transaction queue
-					queue_append(&tQueue, &hostCmd);
+					queue_append(&tQueue, &cCmd);
 				}
+				numLoop++;
+				numPages -= SECTOR_NUM_PER_PAGE;
 			}
+			//TODO: What to do with the parent command? Where does it go?
 		}
 
 		if (tQueue.length > 0) {
 			if (holdingQueue.length > 0) {
 				while (tQueue.length < TQUEUE_MAX) {
-					P_HOST_CMD cmd;
+					P_CHILD_CMD cmd;
 					queue_dequeue(&holdingQueue, &cmd);
 					queue_append(&tQueue, cmd);
 				}
@@ -313,5 +328,5 @@ void ReqHandler(void)
 			}
 		}
 	}
-//}
-//}
+}
+

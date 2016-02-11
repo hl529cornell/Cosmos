@@ -575,9 +575,9 @@ int PmRead(P_HOST_CMD hostCmd, u32 bufferAddr)
 		loop -= SECTOR_NUM_PER_PAGE;
 	}
 
-	int i;
-	for(i=0 ; i<DIE_NUM ; ++i)
-		WaitWayFree(i%CHANNEL_NUM, i/CHANNEL_NUM);
+//	int i;
+//	for(i=0 ; i<DIE_NUM ; ++i)
+//		WaitWayFree(i%CHANNEL_NUM, i/CHANNEL_NUM);
 
 	return 0;
 }
